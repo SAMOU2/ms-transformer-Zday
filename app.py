@@ -210,6 +210,19 @@ T = {
                      "3 · Follow one decision, flow by flow"),
     "d_s4":         ("4 · Comparer les trois détecteurs", "4 · Compare the three detectors"),
 
+    "cmp_indispo":  ("{d} ne peut pas être calculé : `models/features_maha.npz` "
+                     "est absent. Ce fichier n'est écrit que par une évaluation du "
+                     "score sur les features. Régénère-le avec "
+                     "`py 03_evaluation.py --score features --target-fpr 0.09`, "
+                     "puis recharge cette page. La ligne reste affichée pour qu'on "
+                     "ne croie pas à deux détecteurs au lieu de trois.",
+                     "{d} cannot be computed: `models/features_maha.npz` is missing. "
+                     "That file is only written by an evaluation of the features "
+                     "score. Regenerate it with "
+                     "`py 03_evaluation.py --score features --target-fpr 0.09`, then "
+                     "reload this page. The row stays visible so that two detectors "
+                     "are not mistaken for three."),
+
     "sb_h":         ("Réglages", "Settings"),
     "sb_lang":      ("Langue", "Language"),
     "sb_det":       ("Détecteur", "Detector"),
@@ -1543,13 +1556,18 @@ def compare_three(fpr_pct: float, lang: str, n: int = 4000):
     atk = ~np.array(["BENIGN" in str(v).upper() for v in lab])
     fams = sorted({str(v) for v in lab[atk]})
 
-    rows = []
+    rows, manquants = [], []
     for mode_, name in (("modele", t("mode_modele")),
                         ("one-class", t("mode_one_class")),
                         ("supervise", t("mode_supervise"))):
-        if mode_ == "supervise" and HGB is None and SUP is None:
-            continue
-        if mode_ == "one-class" and FEAT is None:
+        # Idem ici : un détecteur indisponible garde sa ligne, marquée « n/a »,
+        # pour que le tableau montre toujours les trois approches comparées.
+        dispo = not ((mode_ == "supervise" and HGB is None and SUP is None)
+                     or (mode_ == "one-class" and FEAT is None))
+        if not dispo:
+            manquants.append(name)
+            rows.append({"key": mode_, "mode": name, "n": len(Xs),
+                         "alerts": None, "recall": None, "per": {}})
             continue
         sc, _, _, _ = infer(Xs, mode_=mode_)
         thr = _cmp_threshold(mode_, fpr_pct)
@@ -1562,7 +1580,7 @@ def compare_three(fpr_pct: float, lang: str, n: int = 4000):
                 per[f] = float(pred[m].mean())
         rows.append({"key": mode_, "mode": name, "n": len(sc),
                      "alerts": int(pred.sum()), "recall": recall, "per": per})
-    return {"rows": rows, "fams": fams, "n": len(Xs)}
+    return {"rows": rows, "fams": fams, "n": len(Xs), "manquants": manquants}
 
 
 SYSCALL_VOCAB = ["open", "read", "close", "socket", "connect", "send", "recv",
@@ -2352,13 +2370,26 @@ with tab_d:
                 st.caption(t("lab_none"))
             _fpr = float(st.session_state.get("last_fpr", 5.0))
             _rows = []
+            _manquants = []
             with st.spinner(t("cmp_btn")):
                 for _m, _name in (("modele", "MS-Transformer"),
                                   ("one-class", "One-class"),
                                   ("supervise", "Supervised" if LANG == "en" else "Supervisé")):
-                    if _m == "supervise" and HGB is None and SUP is None:
-                        continue
-                    if _m == "one-class" and FEAT is None:
+                    # Un détecteur indisponible garde sa ligne, marquée « n/a ».
+                    # Le supprimer ferait croire à deux détecteurs au lieu de
+                    # trois — c'est exactement ce qui se produisait quand
+                    # models/features_maha.npz n'existait pas.
+                    _dispo = not ((_m == "supervise" and HGB is None and SUP is None)
+                                  or (_m == "one-class" and FEAT is None))
+                    if not _dispo:
+                        _manquants.append(_name)
+                        _rows.append({
+                            t("cmp_col"): _name,
+                            t("cmp_alerts"): t("n_a"),
+                            t("cmp_rate"): t("n_a"),
+                            t("cmp_recall"): t("n_a"),
+                            t("cmp_scale"): detector_scales().get(_m, {}).get("kind", t("n_a")),
+                        })
                         continue
                     _sc, _, _, _ = infer(_Xs, mode_=_m)
                     _thr = _cmp_threshold(_m, _fpr)
@@ -2380,6 +2411,8 @@ with tab_d:
                 st.markdown(f"**{t('cmp_h')}**")
                 st.caption(t("cmp_intro", fpr=f"{_fpr:g}"))
                 st.dataframe(pd.DataFrame(_rows), width='stretch', hide_index=True)
+                if _manquants:
+                    st.warning(t("cmp_indispo", d=", ".join(_manquants)))
                 st.caption(t("cmp_note"))
 
 # ══════════════════════════════════════════════════════════════════════
@@ -2505,12 +2538,17 @@ with tab_r:
                 st.caption(t("cmp3_intro", n=f"{_c3['n']:,}", fpr=f"{target_fpr*100:g}"))
                 _t3 = pd.DataFrame([{
                     t("cmp_col"): r["mode"],
-                    t("cmp_alerts"): f'{r["alerts"]}/{r["n"]}',
-                    t("cmp_rate"): f'{r["alerts"]/max(r["n"],1)*100:.1f} %',
-                    t("cmp_recall"): f'{r["recall"]*100:.1f} %',
-                    t("cmp_scale"): detector_scales()[r["key"]]["kind"],
+                    t("cmp_alerts"): (t("n_a") if r["alerts"] is None
+                                      else f'{r["alerts"]}/{r["n"]}'),
+                    t("cmp_rate"): (t("n_a") if r["alerts"] is None
+                                    else f'{r["alerts"]/max(r["n"],1)*100:.1f} %'),
+                    t("cmp_recall"): (t("n_a") if r["recall"] is None
+                                      else f'{r["recall"]*100:.1f} %'),
+                    t("cmp_scale"): detector_scales().get(r["key"], {}).get("kind", t("n_a")),
                 } for r in _c3["rows"]])
                 st.dataframe(_t3, width='stretch', hide_index=True)
+                if _c3.get("manquants"):
+                    st.warning(t("cmp_indispo", d=", ".join(_c3["manquants"])))
 
                 # rappel par famille inédite, pour voir où chaque détecteur cède
                 st.caption(t("cmp3_fam"))
