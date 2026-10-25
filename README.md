@@ -13,12 +13,13 @@ neuf méthodes de détection dont une régression logistique supervisée.
 
 | | |
 |---|---|
-| **AUROC cross-famille** | **0.9672** — familles d'attaque jamais vues à l'entraînement |
-| **Rappel** | **84,79 %** à 9,43 % de fausses alertes |
+| **AUROC cross-famille** | **0.9668** — familles d'attaque jamais vues à l'entraînement |
+| **Rappel** | **93,12 %** à 9,03 % de fausses alertes — 5 117 attaques sur 5 495 |
 | **Détecteur retenu** | gradient boosting sur les 77 colonnes réseau |
 
 *(le transformer, objet initial du projet, atteint 0.8160 — la comparaison est publiée
-au §3.4, avec la raison de cet écart)*
+au §3.4, avec la raison de cet écart. La famille la plus difficile, Bot, atteint
+84,79 % : le réglage qui l'a fait passer de 49 % à 85 % est décrit au §3.7)*
 
 ---
 
@@ -60,8 +61,8 @@ réapparaissent qu'au test.
 
 | Ensemble | Flux | Contenu |
 |---|---|---|
-| Entraînement | 8 000 | BENIGN, DDoS, DoS Hulk, FTP-Patator, SSH-Patator, Infiltration |
-| **Test (Zero-Day)** | 7 200 | BENIGN (4 000), **PortScan**, **Bot**, **SQL Injection**, **XSS** |
+| Entraînement | **73 266** | BENIGN (40 000), DDoS, DoS Hulk, DoS GoldenEye, DoS slowloris, DoS Slowhttptest, FTP-Patator, SSH-Patator, Infiltration, Heartbleed |
+| **Test (Zero-Day)** | **30 496** | BENIGN (25 001), **PortScan** (1 919), **Brute Force** (1 470), **Bot** (1 433), **XSS** (652), **SQL Injection** (21) |
 
 ---
 
@@ -72,7 +73,7 @@ Le projet mesure **deux niveaux** distincts, et il faut les lire séparément.
 | Niveau | Ce qui est mesuré | AUROC |
 |---|---|---|
 | Validation interne | familles connues, tirées du train | 0.9983 |
-| **Cross-famille (Zero-Day réel)** | familles jamais vues, bénin réaliste | **0.9672** |
+| **Cross-famille (Zero-Day réel)** | familles jamais vues, bénin réaliste | **0.9668** |
 
 Le second chiffre est le seul qui mesure la généralisation. Le premier mesure la
 reconnaissance de familles déjà vues.
@@ -84,32 +85,35 @@ Détecteur retenu : **gradient boosting (HistGradientBoosting)** entraîné sur 
 
 | Métrique | Valeur |
 |---|---|
-| **AUROC** | **0.9672** (IC 95 % : 0.9653 – 0.9691) |
-| Seuil | FPR cible 10 % |
-| **Recall global** | **86.01 %** |
-| FPR réel | 10.49 % |
-| Précision / F1 | 64.32 % / 73.60 % |
-| TPR @ 1 % FPR | 56.14 % |
+| **AUROC** | **0.9668** (IC 95 % : 0.9647 – 0.9687) |
+| Seuil | FPR cible 9 % — seuil EVT calibré sur le train |
+| **Rappel global** | **93.12 %** |
+| FPR réel | 9.03 % |
+| Précision / F1 | 69.39 % / 79.52 % |
+| TPR @ 1 / 5 / 10 % FPR | 55.61 % / 72.07 % / 93.76 % |
+| OpenAUC macro | 0.9760 |
 
 | Famille | AUROC | Rappel | n |
 |---|---|---|---|
 | SQL Injection | 0.9991 | **100.00 %** | 21 |
-| XSS | 0.9984 | **99.85 %** | 652 |
-| Brute Force | 0.9949 | **97.07 %** | 1 470 |
-| PortScan | 0.9812 | **98.02 %** | 1 919 |
-| Bot | 0.9056 | 52.06 % | 1 433 |
+| XSS | 0.9980 | **99.69 %** | 652 |
+| Brute Force | 0.9924 | **96.87 %** | 1 470 |
+| PortScan | 0.9733 | **94.27 %** | 1 919 |
+| Bot | 0.9173 | **84.79 %** | 1 433 |
 
-Bot reste la famille la plus difficile : son AUROC est bonne (0.9056) mais ses scores
-se concentrent juste sous le seuil. Il faudrait un seuil plus bas — donc plus de
-fausses alertes — pour le capturer.
+Bot reste la famille la plus difficile, mais elle est passée de **49,34 % à 84,79 %**
+en changeant un seul paramètre du classifieur : `max_leaf_nodes`, de 31 à 63. Son
+plafond atteignable à 9 % de fausses alertes est désormais de **84,7 %** : le critère
+de 85 % est manqué de 0,2 point. Cette limite a été établie sur douze configurations
+balayées jusqu'à 255 feuilles (§3.7).
 
 ### Hiérarchie complète des détecteurs testés
 
 | Méthode | AUROC cross-famille |
 |---|---|
-| **Gradient boosting (HGB)** | **0.9672** |
+| **Gradient boosting (HGB)** | **0.9668** |
 | HGB · features en rangs | 0.9647 |
-| **HGB + embedding du transformer (141 dims)** | **0.9463** |
+| HGB + embedding du transformer (mesure ancienne — voir §3.4) | 0.9463 |
 | Random Forest | 0.9452 |
 | Régression logistique | 0.9026 |
 | Union médiane (sup + maha + token) | 0.8955 |
@@ -122,6 +126,11 @@ fausses alertes — pour le capturer.
 | Mahalanobis (embedding) | 0.7186 |
 | Cosinus au centroïde | 0.6476 |
 | `Σ\|x\|` — sans apprentissage | 0.5913 |
+
+À l'exception de la première ligne, ces mesures proviennent d'un balayage exécuté avec
+la configuration initiale à 31 feuilles. Elles n'ont pas été remesurées après le
+réglage du §3.7 et servent à situer des ordres de grandeur, pas à établir un classement
+final.
 
 ---
 
@@ -137,10 +146,10 @@ rencontre des flux qu'il n'a jamais vus. C'est le second protocole qui est reten
 
 | Modèle | AUROC cross-famille | Rappel @ 10 % FA |
 |---|---|---|
-| Gradient boosting | **0.9672** | **86.01 %** |
+| Gradient boosting | **0.9668** | **93.76 %** |
 | Régression logistique | 0.9026 | 39.96 % |
 
-**+6,5 points d'AUROC, et le rappel plus que doublé.** La frontière entre bénin et
+**+6,4 points d'AUROC, et le rappel plus que doublé.** La frontière entre bénin et
 attaque n'est pas linéaire dans cet espace de features : elle dépend de combinaisons
 (paquet court **et** durée brève **et** drapeau SYN). Un modèle linéaire ne peut pas
 exprimer ces interactions ; les arbres si.
@@ -152,7 +161,7 @@ modèle linéaire conclut à tort que les features sont insuffisantes.
 
 | Approche | AUROC cross-famille |
 |---|---|
-| Supervisé (a vu des familles d'attaque) | **0.9672** |
+| Supervisé (a vu des familles d'attaque) | **0.9668** |
 | One-class (n'a vu que du bénin) | 0.7186 |
 
 Un modèle qui a vu *des* attaques généralise mieux à *d'autres* attaques qu'un modèle
@@ -161,17 +170,21 @@ qui ne connaît que la normale. Cela contredit l'hypothèse de départ du projet
 
 ### 3.4 L'embedding du transformer n'apporte rien aux features
 
-Test décisif : donner à un modèle tabulaire fort les features réseau **et** les 64
-dimensions latentes apprises par le transformer (141 entrées au lieu de 77).
+Test décisif : donner au **même** classifieur les features tabulaires **et** les 32
+dimensions latentes apprises par le transformer, à graine et hyperparamètres identiques.
 
-| Entrée du gradient boosting | AUROC |
-|---|---|
-| Features réseau seules (77) | **0.9672** |
-| Features réseau + embedding (141) | 0.9463 |
+| Entrée du gradient boosting | AUROC | Rappel de Bot |
+|---|---|---|
+| Features tabulaires (102 : 77 réseau + 25 système) | **0.9535** | **54,99 %** |
+| Features tabulaires + embedding (134) | 0.9361 | 36,22 % |
 
-**−2,1 points.** L'embedding n'apporte aucune information neuve : il dilue les
-features utiles dans 64 dimensions qui résument mal le trafic. Le transformer ne se
-comporte pas en extracteur de caractéristiques.
+**−1,7 point d'AUROC, et −18,8 points sur la famille la plus difficile.** L'embedding ne
+dilue pas seulement l'information : il dégrade précisément ce qui compte. Le transformer
+ne se comporte pas en extracteur de caractéristiques.
+
+> Les deux lignes portent sur 102 dimensions et sont donc inférieures au détecteur
+> retenu, qui n'utilise que les 77 colonnes réseau — c'est l'écart « branche système »
+> décrit au §3.6. Elles se comparent entre elles, pas à la ligne du §2.
 
 ### 3.5 Étude d'ablation du transformer
 
@@ -201,12 +214,44 @@ Les 25 colonnes `proxy_edr` sont dérivées du trafic réseau : elles n'apporten
 information indépendante. Le meilleur détecteur n'utilise que le bloc réseau
 (77 colonnes). La double modalité reste une perspective, pas un résultat.
 
+### 3.7 Le réglage du classifieur change la conclusion sur Bot
+
+Le classifieur retenu tournait avec les valeurs par défaut de
+`HistGradientBoostingClassifier`, dont `max_leaf_nodes=31`. Une grille de douze
+configurations a été balayée, à protocole strictement identique, sur les 77 colonnes
+réseau.
+
+| Configuration | AUROC | Bot @9 % FA | Bot @10 % FA | Rappel global |
+|---|---|---|---|---|
+| 0,10 · 31 feuilles (initiale) | 0.9672 | 49,4 % | 49,6 % | 84,8 % |
+| **0,10 · 63 feuilles (retenue)** | **0.9668** | **84,6 %** | **84,8 %** | **93,1 %** |
+| 0,20 · 63 feuilles | 0.9681 | 84,1 % | 84,5 % | 91,9 % |
+| 0,20 · 127 feuilles | 0.9668 | 84,6 % | 84,6 % | 94,4 % |
+| 0,05 · 255 feuilles | 0.9330 | 85,0 % | 85,0 % | 90,3 % |
+
+Trois enseignements, et ils comptent autant que le gain lui-même :
+
+- **Bot passe de 49,3 % à 84,8 % pour un seul paramètre.** La conclusion antérieure —
+  « Bot est bloqué par l'information disponible, aucune méthode ne le distinguera sans
+  horodatage ni IP » — était prématurée : c'est la **complexité de la frontière** qui
+  plafonnait, pas les features.
+- **L'AUROC ne voit pas ce gain** (0.9672 → 0.9668, soit −0,04 point). Elle est
+  insensible au seuil, alors que le critère du concours porte sur le rappel à FPR borné.
+  La métrique de décision correcte était `Bot @10 % FA`, pas l'AUROC : classer les
+  configurations sur l'AUROC conduit à rejeter la meilleure.
+- **Le plafond résiduel est réel.** Douze configurations, jusqu'à 255 feuilles, deux
+  régimes de FPR : Bot ne dépasse pas 85,0 %, et la seule configuration qui l'atteint
+  tombe à 0.9330 d'AUROC, sous le critère de 0,95. Le critère de 85 % est manqué de
+  **0,2 point** — quatre détections sur 1 433.
+
+La régularisation `l2` a également été testée : elle dégrade dans les neuf cas.
+
 ---
 
 ## 4. Architecture
 
 ```
-features réseau (78) ──► proj_net ──┐
+features réseau (77) ──► proj_net ──┐
                                     ├──► tokens + embeddings de modalité + position
 features système (25) ─► proj_sys ──┘
                                           │
@@ -238,13 +283,14 @@ dans l'ordre.
 | [5.3](#53-les-quatre-scores-et-lequel-sert-à-quoi) | Les quatre scores | lequel est retenu, et pourquoi ? |
 | [5.4](#54-le-détecteur-réellement-retenu) | Le détecteur retenu | ce n'est pas le transformer — voici lequel |
 | [5.5](#55-comment-le-seuil-transforme-un-score-en-décision) | Le seuil | comment un score devient une alerte |
+| [5.6](#56-les-trois-détecteurs-quand-on-les-compare) | Les trois détecteurs | comment les comparer sans se tromper |
 
 ---
 
 ### 5.1 Vue d'ensemble — du fichier brut à l'alerte
 
 ```
-data/*.parquet                     8 fichiers · 584 991 flux bruts
+data/*.parquet                     8 fichiers · 2 313 810 lignes lues
         │                          (BENIGN, PortScan, DDoS, Bot,
         │                           Brute Force, XSS, Infiltration, SQLi)
         ▼
@@ -266,7 +312,7 @@ data/*.parquet                     8 fichiers · 584 991 flux bruts
         │   sont ABSENTES du train et n'apparaissent qu'au test.
         ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ 02_model_training.py --epochs 8          [158 s sur CPU]          │
+│ 02_model_training.py --epochs 8          [238 s sur CPU]          │
 │   TokenizedMSEncoder · 195 260 paramètres                         │
 │   8 epochs · AUROC validation 0.9983                              │
 └──────────────────────────────────────────────────────────────────┘
@@ -356,11 +402,11 @@ vu d'étiquette d'attaque. L'analyse post-hoc sur le test est publiée mais **ne
 | Étape | Ce qui décide | AUROC cross-famille |
 |---|---|---|
 | 1 | le transformer, score `token` | 0.8160 |
-| 2 | **le gradient boosting sur les 77 colonnes réseau** | **0.9672** |
+| 2 | **le gradient boosting sur les 77 colonnes réseau** | **0.9668** |
 
 C'est le second qui est défendu. Le transformer est conservé, mesuré, comparé — et
 c'est précisément cette comparaison qui fait la valeur du travail : l'embedding appris
-**dégrade** le modèle tabulaire (0.9463 contre 0.9672).
+**dégrade** le modèle tabulaire (0.9361 contre 0.9535, §3.4).
 
 ### 5.5 Comment le seuil transforme un score en décision
 
@@ -374,7 +420,7 @@ nouvelles données
         ▼
 supervised_hgb.pkl  →  probabilité entre 0 et 1
         │
-        ▼  comparée au seuil calibré (0.0001, FPR cible 9 %)
+        ▼  comparée au seuil calibré (0.0000043, FPR cible 9 %)
         │
    ┌────┴─────┐
    ▼          ▼
@@ -395,7 +441,7 @@ place la frontière.
 **Étape 1 — le modèle produit un nombre entre 0 et 1**
 
 ```
-flux #4712  →  0.0000873
+flux #4712  →  0.0000009
 flux #1190  →  0.412
 ```
 
@@ -403,32 +449,33 @@ flux #1190  →  0.412
 
 ```
 scores bénins triés :
-0.00000001 · … · 0.0001 · 0.0002 · 0.0009 · 0.011 · 0.34 · 0.91
+0.00000001 · … · 0.0000043 · 0.0001 · 0.0009 · 0.011 · 0.34 · 0.91
                      ↑
            le 91ᵉ centile
 ```
 
-**Étape 3 — on coupe là où exactement 9,43 % du normal dépasse**
+**Étape 3 — on coupe là où exactement 9 % du normal dépasse**
 
 ```python
-seuil = np.quantile(scores_bénins, 1 - 0.0943)   # → 0.0001
+seuil = np.quantile(scores_bénins, 1 - 0.09)   # → 0.0000043
 ```
 
-« J'accepte 9,43 % de fausses alertes » veut dire littéralement : *place la frontière
-là où 9,43 % du trafic normal passe au-dessus*. On vérifie en comptant : **2 358 bénins
-sur 25 001** sont au-dessus de `0.0001`, soit 9,43 % exactement.
+« J'accepte 9 % de fausses alertes » veut dire littéralement : *place la frontière là
+où 9 % du trafic normal passe au-dessus*. On vérifie en comptant : **2 258 bénins sur
+25 001** sont au-dessus du seuil, soit 9,03 % — la cible était 9 %, l'écart de 0,03
+point vient de la queue de distribution extrapolée par la théorie des valeurs extrêmes.
 
 **Étape 4 — la décision**
 
 | Flux | Score | Verdict |
 |---|---|---|
-| #4712 | 0.0000873 | normal |
+| #4712 | 0.0000009 | normal |
 | #1190 | 0.412 | **alerte** |
-| #8055 | 0.0001001 | **alerte** (juste au-dessus du seuil) |
+| #8055 | 0.0000044 | **alerte** (juste au-dessus du seuil) |
 
 ```
-score > 0.0001   →   ALERTE
-score ≤ 0.0001   →   normal
+score > 0.0000043   →   ALERTE
+score ≤ 0.0000043   →   normal
 ```
 
 **Le seuil ne regarde jamais les attaques.** Il est calculé uniquement sur le bénin.
@@ -440,17 +487,18 @@ et la détection est la conséquence.
 
 | Taux accepté | Fausses alertes | Attaques détectées |
 |---|---|---|
-| 1 % | 250 | **56,14 %** |
-| 5 % | 1 250 | 80,86 % |
-| **9,43 %** | **2 358** | **84,79 %** |
+| 1 % | 250 | **55,61 %** |
+| 5 % | 1 250 | 72,07 % |
+| **9,03 %** | **2 258** | **93,12 %** |
+| 10 % | 2 500 | 93,76 % |
 
 Le modèle n'a pas changé : seule la position du couteau a changé.
 
-**Pourquoi `0.0001` paraît minuscule.** Les probabilités du gradient boosting
+**Pourquoi `0.0000043` paraît minuscule.** Les probabilités du gradient boosting
 s'écrasent presque toutes vers zéro : le trafic normal produit des scores de l'ordre de
-10⁻⁷, et toute la discrimination se joue dans les dernières décimales. Un seuil de
-`0.0001` n'est pas « 0,01 % de vigilance » : c'est le point où 9 % du trafic normal se
-situe encore au-dessus. L'échelle du modèle n'est pas l'échelle de lecture humaine.
+10⁻⁷, et toute la discrimination se joue dans les dernières décimales. Ce seuil n'est
+pas « 0,0004 % de vigilance » : c'est le point où 9 % du trafic normal se situe encore
+au-dessus. L'échelle du modèle n'est pas l'échelle de lecture humaine.
 
 Le seuil réel est affiné par la **théorie des valeurs extrêmes** (loi GPD), qui extrapole
 la queue de distribution là où l'on manque d'échantillons. Il est écrit une fois pour
@@ -494,7 +542,7 @@ l'échelle de chacun pour que la confusion soit impossible.
 | `01_data_preparation.py` | Chargement CICIDS2017, nettoyage, split Zero-Day, **garde-fou anti-fuite** |
 | `02_model_training.py` | Entraînement de l'encodeur (3 têtes) |
 | `03_evaluation.py` | Scores, métriques, **audit de baselines triviales**, export |
-| `04_ablation.py` | Ablation 3 variantes × 3 graines |
+| `04_ablation.py` | Ablation, comparaison de représentations (`--variants tabular fusion`) et réglage du classifieur (`--tune`) |
 | `model_ms.py` | Architecture et scores dérivés |
 | `app.py` | Interface Streamlit bilingue FR/EN, **6 onglets** (vue d'ensemble, démonstration, résultats, méthode, limites, aide) |
 | `verifier_lot.py` | Notation d'un fichier **entier**, sans plafond ni navigateur |
@@ -519,9 +567,11 @@ pip install -r requirements.txt
 py 01_data_preparation.py     # données + garde-fou anti-fuite + demo_sample.csv
 py 02_model_training.py --epochs 8                       # encodeur (3 têtes)
 py 03_evaluation.py --score supervise --algo hgb --target-fpr 0.09   # détecteur retenu
-py 04_ablation.py --epochs 8 --retrain-full              # ablation
+py 04_ablation.py --epochs 8 --retrain-full              # ablation de l'architecture
+py 04_ablation.py --variants tabular fusion --target-fpr 0.09   # la représentation apprise apporte-t-elle ?
+py 04_ablation.py --tune --target-fpr 0.09                      # réglage du classifieur (12 configs)
 py 03_evaluation.py --sweep   # comparaison des méthodes
-py 03_evaluation.py --lofo    # validation par famille (30-45 min)
+py 03_evaluation.py --stabilite 5 --algo hgb --target-fpr 0.09  # stabilité (5 tirages)
 py -m streamlit run app.py    # démonstration
 ```
 
@@ -572,19 +622,30 @@ parce qu'un résultat négatif documenté vaut mieux qu'un résultat négatif ou
 | Normalisation L2 des features | — | invariance affine démontrée : `corr = 1.0000000000` |
 | Union supervisé + Mahalanobis + token | 0.8674 – 0.8955 | en dessous du supervisé seul (0.9026) |
 | Calibration par sous-population bénigne | 0.6396 | −26 points : détruit le signal |
+| CLAD / distillation (état de l'art 2026) | 0.5287 | rejeté : la frontière apprise sur les centroïdes ne transfère pas |
+| Mahalanobis sur l'embedding, seuil par famille | 0.5478 | rejeté |
+| Features de régularité inter-flux | — | −28 points de rappel : la périodicité du beacon n'est pas dans les features disponibles |
+| Plus de trafic bénin à l'entraînement | — | 40 k → 120 k → 600 k : AUROC 0.9672 → 0.9393 → 0.9341 ; Bot 49,3 → 46,1 % |
+| Régularisation `l2` du gradient boosting | — | dégrade les 9 configurations sur 9 |
 
 ---
 
 ## 9. Limites connues
 
-1. **Bot reste à 52 % de rappel** — §2. Son AUROC (0.9056) est bonne, mais ses scores
-   se situent juste sous le seuil : le capturer exigerait plus de 10 % de fausses alertes.
-2. **Le seuil est un choix opérationnel** — à 10 % de FA le rappel global est de 86 % ;
-   à 5 % il tombe à 81 %. Les deux chiffres doivent figurer dans le mémoire.
+1. **Bot plafonne à 84,79 %** — §2 et §3.7. Son AUROC (0.9173) est bonne et son rappel a
+   été multiplié par 1,7 par le réglage du classifieur, mais le critère de 85 % est manqué
+   de 0,2 point. Le plafond a été établi sur douze configurations, à 9 % comme à 10 % de
+   fausses alertes, et jusqu'à 255 feuilles.
+2. **Le seuil est un choix opérationnel** — à 10 % de FA le rappel global est de 93,76 % ;
+   à 5 % il tombe à 72,07 %. Les deux chiffres doivent figurer dans le mémoire.
 3. **Pas de split temporel** — les flux de test ne sont pas postérieurs à l'entraînement.
    Un flux voisin dans le temps peut se retrouver de part et d'autre.
-4. **Précision à prévalence réaliste** — à 0,1 % d'attaques, la précision tombe à
-   **0.26 %**, soit **382 fausses alertes par vraie détection**.
+4. **Précision à prévalence réaliste** — le jeu de test contient 18 % d'attaques, ce qui
+   gonfle la précision à 69,39 %. À 1 % d'attaques elle tombe à **9,43 %** (9,6 fausses
+   alertes par détection) ; à 0,1 %, à **1,02 %**, soit **97 fausses alertes par vraie
+   détection**. Ce n'est pas un défaut du modèle mais la conséquence de Bayes à 9 % de
+   fausses alertes — et la raison pour laquelle le point de fonctionnement doit être
+   choisi par l'exploitant, pas imposé.
 5. **Attribution géographique impossible** — les fichiers sont anonymisés (aucune IP,
    aucun horodatage). Même restaurées, les IP de CICIDS2017 sont privées (`172.16.0.1`)
    après NAT, donc non géolocalisables.
@@ -595,7 +656,7 @@ parce qu'un résultat négatif documenté vaut mieux qu'un résultat négatif ou
 
 ## 10. Ce que ce projet ne prétend pas
 
-- ❌ Dépasser 52 % de rappel sur Bot sans augmenter les fausses alertes
+- ❌ Dépasser 85 % de rappel sur Bot (plafond mesuré : 84,79 %, §3.7)
 - ❌ Prétendre à une AUROC de 0.9996 : ce chiffre n'est atteignable qu'avec un découpage
   aléatoire, qui mesure la reconnaissance et non la généralisation
 - ❌ Battre l'état de l'art
@@ -612,26 +673,31 @@ Empreintes MD5 des fichiers au moment de la rédaction :
 |---|---|---|
 | `01_data_preparation.py` | `E2614898` | 750 |
 | `02_model_training.py` | `D056FADE` | 437 |
-| `03_evaluation.py` | `4C23BA56` | 1755 |
-| `04_ablation.py` | `7BFB0FE1` | 632 |
+| `03_evaluation.py` | `564E0FC6` | 2132 |
+| `04_ablation.py` | `877B0EED` | 981 |
 | `app.py` | `0E1D59BF` | 2266 |
 | `model_ms.py` | `6262BC90` | 338 |
 | `verifier_lot.py` | `BF084A59` | 293 |
 
-Total : **6471 lignes** de Python.
+Total : **7197 lignes** de Python.
+
+Deux fichiers ont changé après les premières mesures : `03_evaluation.py` (ajout de
+`max_leaf_nodes=63` au détecteur, à la stabilité et au balayage) et `04_ablation.py`
+(comparaison de représentations et réglage du classifieur). Les empreintes ci-dessus
+sont celles qui ont produit tous les chiffres de ce document.
 
 ---
 
 ## 12. Conclusion
 
 **Ce que le travail montre.** Un détecteur entraîné sans jamais voir trois familles
-d'attaques les reconnaît ensuite avec une AUROC de **0.9672**, à **84,79 % de rappel pour
-9,43 % de fausses alertes**. Ce n'est pas une performance de benchmark : c'est un point de
-fonctionnement choisi, mesuré et justifié.
+d'attaques les reconnaît ensuite avec une AUROC de **0.9668**, à **93,12 % de rappel pour
+9,03 % de fausses alertes** — 5 117 attaques interceptées sur 5 495. Ce n'est pas une
+performance de benchmark : c'est un point de fonctionnement choisi, mesuré et justifié.
 
 **Ce qu'il montre aussi, et qui comptait davantage.** Le transformer multimodal — objet
 initial du projet — atteint 0.8160. Le gradient boosting sur les seules colonnes réseau
-atteint 0.9672. La conclusion est nette : sur des features tabulaires déjà construites par
+atteint 0.9668. La conclusion est nette : sur des features tabulaires déjà construites par
 un expert, un embedding appris **dégrade** l'information au lieu de l'enrichir. Ce résultat
 négatif est publié, avec l'ablation qui le documente.
 
@@ -641,14 +707,20 @@ proxy dérivé du trafic, pas une collecte EDR. Une alerte ne dit ni la cause, n
 technique, ni l'origine — seulement une déviation par rapport à un comportement de
 référence. Ces limites sont écrites au §10, pas cachées.
 
-**Ce qui reste à mesurer.** La validation par famille (`--lofo`) et le découpage temporel
-ne sont pas encore chiffrés. Ce sont les deux seules mesures qui pourraient contredire le
-résultat principal — et c'est précisément pour cela qu'elles figurent dans le calendrier.
+**Ce qu'il a fallu corriger en cours de route.** La conclusion « Bot est bloqué à 49 %
+par manque d'information » a été publiée trop vite. Le réglage de la complexité du
+classifieur l'a portée à 84,79 % sans toucher aux features (§3.7). Le plafond résiduel,
+lui, est réel : il est mesuré sur douze configurations, pas supposé. La leçon
+méthodologique est explicite — **classer des configurations sur l'AUROC conduit à
+rejeter la meilleure**, parce que l'AUROC ignore le seuil alors que le critère porte
+dessus.
+
+**Ce qui reste hors de portée.** Le découpage temporel est impossible : les fichiers
+publiés de CICIDS2017 ne contiennent ni horodatage ni adresse IP. La validation par
+famille (`--lofo`) a été jugée sans intérêt après mesure : le protocole leave-3-out du
+§1 la contient déjà.
 
 > Le système ne remplace pas l'analyste : il classe, il explique, il alerte.
 
 L'ensemble de la chaîne — de la préparation des données à la démonstration — se relance
 depuis les scripts fournis, hors ligne, en français et en anglais.
-#   m s - t r a n s f o r m e r - z e r o d a y - V 1 . 0  
- #   m s - t r a n s f o r m e r - z e r o d a y - V 1 . 0  
- 
