@@ -27,6 +27,7 @@ import pickle
 import os
 import datetime
 import json
+import time
 
 st.set_page_config(page_title="PSM-HT · Zero-Day Detection",
                    page_icon="🛡", layout="wide")
@@ -148,6 +149,138 @@ T = {
     "d_file":       ("Importer un fichier", "Upload file"),
     "d_generate":   ("▶ Analyser un flux", "▶ Analyse traffic"),
     "d_upload":     ("Dépose un fichier .csv ou .parquet", "Drop a .csv or .parquet file"),
+    # ── trace d'un flux : le trajet complet d'une décision ──────────────
+    # ── mode direct : flux notés à mesure qu'ils arrivent ───────────────
+    "lv_h":         ("Direct — flux notés à l'arrivée", "Live — flows scored as they arrive"),
+    "lv_c":         ("Un collecteur écrit les flux terminés dans un fichier CSV ; "
+                     "l'interface les note à mesure. Aucun flux n'est simulé ici : "
+                     "ce qui s'affiche vient du fichier, pas d'un tirage aléatoire.",
+                     "A collector writes finished flows into a CSV file; the interface "
+                     "scores them as they arrive. Nothing is simulated here: what you "
+                     "see comes from the file, not from a random draw."),
+    "lv_missing":   ("Aucun collecteur détecté. Fichier attendu : `{p}`.",
+                     "No collector detected. Expected file: `{p}`."),
+    "lv_how":       ("Comment alimenter ce fichier", "How to feed this file"),
+    "lv_how_body":  ("Le collecteur doit être **CICFlowMeter**, l'outil qui a produit "
+                     "CICIDS2017 lui-même. Le portage Python (`pip install cicflowmeter`) "
+                     "ne convient pas : il ne calcule pas 6 des 78 colonnes du modèle "
+                     "(sous-flux Fwd/Bwd Packets et Bytes, CWE Flag Count) et en "
+                     "approche 2 autres. Alimenter le modèle avec ces trous donnerait "
+                     "des scores qui ne sont pas ceux du mémoire.\n\n"
+                     "1. Lancez CICFlowMeter en sortie CSV sur votre interface réseau.\n"
+                     "2. Faites écrire le fichier ici : `data/live/live_flows.csv`\n"
+                     "3. Cliquez sur **Démarrer le direct**.\n\n"
+                     "Un flux n'apparaît qu'une fois **terminé** (inactivité d'environ "
+                     "deux minutes) : c'est une contrainte du modèle, pas un défaut "
+                     "de l'interface.",
+                     "The collector must be **CICFlowMeter**, the tool that produced "
+                     "CICIDS2017 itself. The Python port (`pip install cicflowmeter`) is "
+                     "not suitable: it does not compute 6 of the model's 78 columns "
+                     "(Subflow Fwd/Bwd Packets and Bytes, CWE Flag Count) and "
+                     "approximates 2 others. Feeding the model with those gaps would "
+                     "produce scores that are not the ones in the report.\n\n"
+                     "1. Run CICFlowMeter in CSV output mode on your network interface.\n"
+                     "2. Have it write the file here: `data/live/live_flows.csv`\n"
+                     "3. Click **Start live**.\n\n"
+                     "A flow only appears once **finished** (about two minutes of "
+                     "inactivity): that is a constraint of the model, not a defect "
+                     "of the interface."),
+    "lv_live_on":   ("Direct actif", "Live running"),
+    "lv_start":     ("▶ Démarrer le direct", "▶ Start live"),
+    "lv_stop":      ("■ Arrêter", "■ Stop"),
+    "lv_wait":      ("En attente de flux… Le collecteur doit écrire dans le fichier.",
+                     "Waiting for flows… The collector must write to the file."),
+    "lv_count":     ("{n} flux notés · {a} alertes · {r} % d'alertes",
+                     "{n} flows scored · {a} alarms · {r} % alarms"),
+    "lv_cols":      ("Colonnes manquantes dans le fichier : {c}. Les scores seraient "
+                     "faux, l'analyse est refusée.",
+                     "Missing columns in the file: {c}. Scores would be wrong, the "
+                     "analysis is refused."),
+    "lv_last":      ("Derniers flux notés", "Last scored flows"),
+    "lv_since":     ("Depuis le démarrage", "Since start"),
+
+    "st_more":      ("Réserves détaillées", "Detailed caveats"),
+    "d_s1":         ("1 · Choisir la source du trafic", "1 · Choose the traffic source"),
+    "d_s1_c":       ("Un lot tiré du jeu de test, ou un fichier que vous téléversez. "
+                     "Rien n'est noté tant que vous n'avez pas lancé l'analyse.",
+                     "A batch drawn from the test set, or a file you upload. Nothing "
+                     "is scored until you start the analysis."),
+    "d_s2":         ("2 · Lire le résultat", "2 · Read the result"),
+    "d_s3":         ("3 · Suivre une décision, flux par flux",
+                     "3 · Follow one decision, flow by flow"),
+    "d_s4":         ("4 · Comparer les trois détecteurs", "4 · Compare the three detectors"),
+
+    "sb_h":         ("Réglages", "Settings"),
+    "sb_lang":      ("Langue", "Language"),
+    "sb_det":       ("Détecteur", "Detector"),
+    "sb_thr":       ("Fausses alertes visées", "Target false alarms"),
+    "sb_thr_help":  ("Le seuil est calculé pour ce budget de fausses alertes. "
+                     "Il s'applique à toute l'interface : démonstration, rejeu, direct.",
+                     "The threshold is computed for this false-alarm budget. It applies "
+                     "to the whole interface: demo, replay, live."),
+    "sb_reset":     ("Réinitialiser la session", "Reset the session"),
+    "sb_about":     ("Ce que vous réglez ici change ce que vous voyez, jamais le "
+                     "modèle : les scores du mémoire sont mesurés une fois pour toutes.",
+                     "What you set here changes what you see, never the model: the "
+                     "report's figures are measured once and for all."),
+
+    "tr_h":         ("Trace d'un flux", "Trace of a single flow"),
+    "tr_c":         ("Un flux, depuis ses valeurs jusqu'au verdict. Le score affiché "
+                     "est celui que le détecteur actif vient de calculer sur ce lot — "
+                     "rien n'est recalculé ici.",
+                     "One flow, from its values to the verdict. The score shown is the "
+                     "one the active detector just computed on this batch — nothing is "
+                     "recomputed here."),
+    "tr_pick":      ("Choisir un cas", "Choose a case"),
+    "tr_pick_help": ("Les cas sont tirés du lot analysé, avec leur étiquette réelle "
+                     "lorsqu'elle est connue.",
+                     "Cases are drawn from the analysed batch, with their true label "
+                     "when it is known."),
+    "tr_cat_hit":   ("Attaque détectée", "Attack detected"),
+    "tr_cat_miss":  ("Attaque manquée", "Attack missed"),
+    "tr_cat_fp":    ("Fausse alerte", "False alarm"),
+    "tr_cat_tn":    ("Bénin sans alerte", "Benign, no alarm"),
+    "tr_score":     ("Score", "Score"),
+    "tr_thr":       ("Seuil appliqué", "Applied threshold"),
+    "tr_verdict":   ("Verdict", "Verdict"),
+    "tr_hit":       ("⚠ ALERTE", "⚠ ALARM"),
+    "tr_quiet":     ("✓ pas d'alerte", "✓ no alarm"),
+    "tr_true":      ("Étiquette réelle", "True label"),
+    "tr_unknown":   ("inconnue sur ce lot", "unknown on this batch"),
+    "tr_dev_h":     ("Variables les plus écartées de la référence",
+                     "Variables furthest from the reference"),
+    "tr_dev_c":     ("Écart au trafic d'entraînement, en nombre d'écarts-types. "
+                     "**Ce n'est pas l'explication de la décision** : le modèle "
+                     "combine ces variables de façon non linéaire, et une variable "
+                     "très écartée peut peser moins qu'une autre discrète.",
+                     "Deviation from the training traffic, in standard deviations. "
+                     "**This is not the explanation of the decision**: the model "
+                     "combines these variables non-linearly, and a heavily deviating "
+                     "variable may weigh less than a subtle one."),
+    "tr_feat":      ("Variable", "Feature"),
+    "tr_z":         ("Écart (σ)", "Deviation (σ)"),
+
+    # ── rejeu flux par flux ─────────────────────────────────────────────
+    "rj_h":         ("Rejeu flux par flux", "Flow-by-flow replay"),
+    "rj_c":         ("Le lot déjà analysé défile dans l'ordre et les alertes "
+                     "s'accumulent. C'est un **rejeu** d'un lot existant, pas une "
+                     "capture en direct : les scores étaient déjà calculés.",
+                     "The already-analysed batch scrolls through in order and alarms "
+                     "accumulate. This is a **replay** of an existing batch, not a "
+                     "live capture: the scores were already computed."),
+    "rj_btn":       ("Rejouer le lot", "Replay the batch"),
+    "rj_mid":       ("{done} flux traités · {alerts} alertes",
+                     "{done} flows processed · {alarms} alarms"),
+    "rj_end":       ("Rejeu terminé : **{alerts} alertes** sur {n} flux.",
+                     "Replay finished: **{alarms} alarms** on {n} flows."),
+    "rj_note":      ("Un flux ne peut être noté qu'une fois terminé : ses variables "
+                     "sont des agrégats de durée, de paquets et d'écarts entre "
+                     "paquets. Un affichage « en direct » serait donc toujours en "
+                     "retard sur le trafic.",
+                     "A flow can only be scored once it has ended: its variables are "
+                     "aggregates of duration, packets and gaps between packets. A "
+                     "'live' display would therefore always lag behind the traffic."),
+
     "d_reset":      ("Réinitialiser", "Reset"),
     "d_thr_h":      ("Point de fonctionnement", "Operating point"),
     "d_thr_label":  ("Taux de fausses alertes accepté", "Accepted false-alarm rate"),
@@ -248,7 +381,8 @@ T = {
         "The 102 input variables are split into tokens: 4 for the network part, 5 for the EDR "
         "part. Two attention layers process each modality internally, then fuse them. "
         "The output is a 32-dimensional latent vector."),
-    "m_score_h":    ("Le score : distance de Mahalanobis", "The score: Mahalanobis distance"),
+    "m_score_h":    ("Le score one-class : distance de Mahalanobis",
+                     "The one-class score: Mahalanobis distance"),
     "m_score":      (
         "On calcule la moyenne et la covariance des vecteurs latents du trafic **sain "
         "uniquement**, puis la distance de chaque nouvelle connexion à cette distribution. "
@@ -1269,6 +1403,40 @@ def official_metrics():
     return d
 
 
+def live_prepare(df):
+    """
+    Ordonne les colonnes d'un flux entrant selon ce que le modèle attend.
+
+    Le fichier du collecteur porte les noms de colonnes CICIDS2017. On les
+    apparie PAR NOM avec `meta.json.net_columns`, jamais par position : un
+    collecteur qui écrit les colonnes dans un autre ordre produirait sinon des
+    scores silencieusement faux.
+
+    Renvoie (X_standardisé, None) en cas de succès, ou (None, liste des noms
+    manquants) si le fichier n'est pas conforme.
+    """
+    n = int(CFG["n_net"])
+    nf = int(scaler.n_features_in_)
+    noms = list(META.get("net_columns") or [])
+
+    if noms and len(noms) >= n:
+        attendus = noms[:n]
+        manquants = [c for c in attendus if c not in df.columns]
+        if manquants:
+            return None, manquants
+        X = df[attendus].apply(pd.to_numeric, errors="coerce")
+    else:
+        X = df.select_dtypes(include=[np.number])
+        if X.shape[1] < n:
+            return None, []
+
+    X = np.nan_to_num(X.values.astype(np.float64),
+                      nan=0.0, posinf=0.0, neginf=0.0)[:, :n]
+    if nf == n + N_SYS:
+        X = np.hstack([X, proxy_edr_like(X)])
+    return scaler.transform(X[:, :nf]), None
+
+
 @st.cache_data(show_spinner=False)
 def ablation_rows():
     p = os.path.join(ROOT, "results", "ablation.json")
@@ -1505,79 +1673,107 @@ st.markdown(
     'onblur="this.style.left=\'-9999px\';">'
     'Aller au contenu principal</a>', unsafe_allow_html=True)
 
-h1, h2 = st.columns([5.2, 0.8])
-
-with h1:
-    st.markdown(
-        f'<header role="banner" lang="{LANG}">'
-        f'<div class="eyebrow">{t("eyebrow")}</div>'
-        f'<h1 class="proj-title" style="margin:0;">{t("title")}</h1>'
-        f'<p class="proj-sub">{t("subtitle")}</p>'
-        f'<p style="margin:0;">'
-        # Chaque badge associe un symbole et un mot : l'information ne
-        # repose jamais sur la seule couleur (critère WCAG 1.4.1).
-        f'<span class="badge badge-ok" role="status">'
-        f'<span aria-hidden="true">✓</span> {t("badge_offline")}</span>'
-        f'<span class="badge badge-warn" role="status">'
-        f'<span aria-hidden="true">⚠</span> {t("badge_neg")}</span>'
-        f'<span class="badge badge-info" role="status">'
-        f'<span aria-hidden="true">≡</span> {t("badge_audit")}</span>'
-        f'</p></header>', unsafe_allow_html=True)
-
-with h2:
-    st.session_state.lang = st.radio(
-        t("lang_label"), ["fr", "en"], index=0 if LANG == "fr" else 1,
-        horizontal=True, label_visibility="collapsed",
-        key="lang_selector",
-        help=t("lang_help"))
-    if st.session_state.lang != LANG:
-        st.rerun()
+st.markdown(
+    f'<header role="banner" lang="{LANG}">'
+    f'<div class="eyebrow">{t("eyebrow")}</div>'
+    f'<h1 class="proj-title" style="margin:0;">{t("title")}</h1>'
+    f'<p class="proj-sub">{t("subtitle")}</p>'
+    f'<p style="margin:0;">'
+    # Chaque badge associe un symbole et un mot : l'information ne
+    # repose jamais sur la seule couleur (critère WCAG 1.4.1).
+    f'<span class="badge badge-ok" role="status">'
+    f'<span aria-hidden="true">✓</span> {t("badge_offline")}</span>'
+    f'<span class="badge badge-warn" role="status">'
+    f'<span aria-hidden="true">⚠</span> {t("badge_neg")}</span>'
+    f'<span class="badge badge-info" role="status">'
+    f'<span aria-hidden="true">≡</span> {t("badge_audit")}</span>'
+    f'</p></header>', unsafe_allow_html=True)
 
 st.write("")
 
 # ── Bandeau de statut : la vérité sur ce système, avant tout chiffre ────
+# Une seule phrase reste affichée en permanence ; le détail des réserves
+# se déplie, pour ne pas repousser chaque onglet sous six lignes de texte.
+_st_parts = t("st_body").split("\n\n")
 st.markdown(
     f'<div class="note note-warn">'
-    f'<b>{t("st_title")}</b><br>{t("st_body")}'
+    f'<b>{t("st_title")}</b><br>{_st_parts[0]}'
     f'</div>', unsafe_allow_html=True)
+if len(_st_parts) > 1:
+    with st.expander(t("st_more")):
+        st.markdown("\n\n".join(_st_parts[1:]))
 
 st.write("")
 
 st.markdown('<div id="contenu-principal" tabindex="-1"></div>', unsafe_allow_html=True)
 
-m1, m2 = st.columns([3, 2])
-with m1:
+# ══════════════════════════════════════════════════════════════════════
+#  BARRE LATÉRALE — les réglages, séparés des résultats
+#  Un réglage vit à un seul endroit : on ne cherche plus le curseur de
+#  fausses alertes dans un onglet alors qu'il vaut pour toute la page.
+# ══════════════════════════════════════════════════════════════════════
+with st.sidebar:
+    st.markdown(f"### {t('sb_h')}")
+
+    # ── langue ─────────────────────────────────────────────────────────
+    st.session_state.lang = st.radio(
+        t("sb_lang"), ["fr", "en"], index=0 if LANG == "fr" else 1,
+        horizontal=True, key="lang_selector", help=t("lang_help"))
+    if st.session_state.lang != LANG:
+        st.rerun()
+
+    st.divider()
+
+    # ── détecteur ──────────────────────────────────────────────────────
     _modes = ["modele", "one-class", "supervise"]
     _prev = st.session_state.mode
     st.session_state.mode = st.radio(
-        t("mode_label"), _modes,
+        t("sb_det"), _modes,
         index=_modes.index(_prev),
-        horizontal=True, format_func=lambda v: t("mode_" + v.replace("-", "_")))
+        format_func=lambda v: t("mode_" + v.replace("-", "_")))
     MODE = st.session_state.mode
     if MODE != _prev:
         # analysis_data() est mis en cache sans connaître le mode : on purge
         # sinon la démonstration afficherait les scores de l'autre approche.
         st.cache_data.clear()
         st.rerun()
-with m2:
     st.caption(t("mode_" + MODE.replace("-", "_") + "_d"))
 
-# Le détecteur réellement exécuté doit être visible, jamais implicite.
-# Sans cet avertissement, une app qui n'a pas pu charger le gradient boosting
-# retombe silencieusement sur le Mahalanobis et affiche des distances
-# (570 644) là où le rapport annonce une probabilité (0,87).
-if MODE == "supervise" and HGB is None:
-    st.error(
-        "⚠️ **Modèle supervisé introuvable** — les scores affichés proviennent du "
-        "Mahalanobis sur embedding (AUROC 0.7186), **pas** du gradient boosting "
-        "(AUROC 0,9668).\n\n"
-        "Fichiers attendus : `models/supervised_hgb.pkl` et "
-        "`models/supervised_hgb.npz`. Régénère-les avec "
-        "`py 03_evaluation.py --score supervise --algo hgb --target-fpr 0.09`.",
-        icon="⚠️")
-elif MODE == "supervise" and HGB is not None:
-    st.caption("Détecteur actif : **gradient boosting** — le score affiché est une "
-               "probabilité d'attaque entre 0 et 1.")
+    # Le détecteur réellement exécuté doit être visible, jamais implicite.
+    # Sans cet avertissement, une app qui n'a pas pu charger le gradient
+    # boosting retombe silencieusement sur le Mahalanobis et affiche des
+    # distances (570 644) là où le rapport annonce une probabilité (0,87).
+    if MODE == "supervise" and HGB is None:
+        st.error(
+            "⚠️ **Modèle supervisé introuvable** — les scores affichés proviennent "
+            "du Mahalanobis sur embedding (AUROC 0.7186), **pas** du gradient "
+            "boosting (AUROC 0,9668).\n\n"
+            "Fichiers attendus : `models/supervised_hgb.pkl` et "
+            "`models/supervised_hgb.npz`. Régénère-les avec "
+            "`py 03_evaluation.py --score supervise --algo hgb --target-fpr 0.09`.",
+            icon="⚠️")
+
+    st.divider()
+
+    # ── seuil : auparavant enfoui dans l'onglet Démonstration ───────────
+    target_fpr = st.slider(t("sb_thr"), 0.5, 20.0, 5.0, 0.5,
+                           help=t("sb_thr_help"), format="%.1f %%") / 100.0
+    st.session_state.last_fpr = float(target_fpr * 100.0)
+    thr = threshold_for_fpr(target_fpr)
+
+    st.divider()
+    if st.button(t("sb_reset"), width='stretch'):
+        for k in ("last_scores", "last_viol", "last_energy", "last_conf",
+                  "last_emb", "last_true", "last_batch",
+                  "lv_on", "lv_skip", "lv_n", "lv_a", "lv_rows"):
+            st.session_state.pop(k, None)
+        st.session_state.history = []
+        _hp = os.path.join(ROOT, "data", "history_livre.csv")
+        if os.path.exists(_hp):
+            os.remove(_hp)
+        st.rerun()
+
+    st.caption(t("sb_about"))
 
 st.write("")
 
@@ -1645,28 +1841,10 @@ with tab_o:
 #  2 · LIVE DEMO
 # ══════════════════════════════════════════════════════════════════════
 with tab_d:
-    cc1, cc2, cc3 = st.columns([1.1, 1.5, 0.7])
-    with cc1:
-        target_fpr = st.slider(t("d_thr_label"), 0.5, 20.0, 5.0, 0.5,
-                               help=t("d_thr_help"), format="%.1f %%") / 100.0
-        # mémorisé pour que la comparaison des trois détecteurs utilise le
-        # MÊME point de fonctionnement que l'analyse affichée.
-        st.session_state.last_fpr = float(target_fpr * 100.0)
-        thr = threshold_for_fpr(target_fpr)
-    with cc2:
-        mode = st.segmented_control(t("d_mode"), [t("d_live"), t("d_file")],
-                                    default=t("d_live")) or t("d_live")
-    with cc3:
-        st.write("")
-        if st.button(t("d_reset"), width='stretch'):
-            for k in ("last_scores", "last_viol", "last_energy", "last_conf",
-                      "last_emb", "last_true"):
-                st.session_state.pop(k, None)
-            st.session_state.history = []
-            hp = os.path.join(ROOT, "data", "history_livre.csv")
-            if os.path.exists(hp):
-                os.remove(hp)
-            st.rerun()
+    st.markdown(f"#### {t('d_s1')}")
+    st.caption(t("d_s1_c"))
+    mode = st.segmented_control(t("d_mode"), [t("d_live"), t("d_file")],
+                                default=t("d_live")) or t("d_live")
 
     if "history" not in st.session_state:
         st.session_state.history = []
@@ -1834,47 +2012,13 @@ with tab_d:
             X = scaler.transform(X[:, :nf])
             run_demo(X, _labs_up, _labs_up is not None)
 
-    # ── Comparaison des trois détecteurs sur le même lot ──────────────────
-    st.write("")
-    if st.button(t("cmp_btn"), width='stretch'):
-        _Xs = st.session_state.get("last_batch")
-        if _Xs is None:
-            st.info(t("cmp_nodata"))
-        else:
-            _labs = st.session_state.get("last_true")
-            if _labs is None:
-                st.caption(t("lab_none"))
-            _fpr = float(st.session_state.get("last_fpr", 5.0))
-            _rows = []
-            with st.spinner(t("cmp_btn")):
-                for _m, _name in (("modele", "MS-Transformer"),
-                                  ("one-class", "One-class"),
-                                  ("supervise", "Supervised" if LANG == "en" else "Supervisé")):
-                    if _m == "supervise" and HGB is None and SUP is None:
-                        continue
-                    if _m == "one-class" and FEAT is None:
-                        continue
-                    _sc, _, _, _ = infer(_Xs, mode_=_m)
-                    _thr = _cmp_threshold(_m, _fpr)
-                    _nb = int((_sc > _thr).sum())
-                    _rec = t("n_a")
-                    if _labs is not None:
-                        _lab = np.array([str(v) for v in _labs])
-                        _atk = ~np.array(["BENIGN" in str(v).upper() for v in _lab])
-                        if _atk.sum() > 0:
-                            _rec = f"{(_sc[_atk] > _thr).mean()*100:.1f} %"
-                    _rows.append({
-                        t("cmp_col"): _name,
-                        t("cmp_alerts"): f"{_nb}/{len(_sc)}",
-                        t("cmp_rate"): f"{_nb/len(_sc)*100:.1f} %",
-                        t("cmp_recall"): _rec,
-                        t("cmp_scale"): detector_scales()[_m]["kind"],
-                    })
-            if _rows:
-                st.markdown(f"**{t('cmp_h')}**")
-                st.caption(t("cmp_intro", fpr=f"{_fpr:g}"))
-                st.dataframe(pd.DataFrame(_rows), width='stretch', hide_index=True)
-                st.caption(t("cmp_note"))
+    # ════════════════════════════════════════════════════════════════════
+    #  RÉSULTAT DE L'ANALYSE — remonté juste après la source
+    #  C'est ce que l'utilisateur vient chercher : il ne doit pas avoir à
+    #  faire défiler la trace, le rejeu et le direct pour le trouver.
+    # ════════════════════════════════════════════════════════════════════
+    st.divider()
+    st.markdown(f"#### {t('d_s2')}")
 
     scores = st.session_state.get("last_scores")
     if scores is None:
@@ -1983,6 +2127,260 @@ with tab_d:
         st.download_button("CSV", dfh.to_csv(index=False).encode(),
                            "registry.csv", width='stretch')
 
+
+    # ════════════════════════════════════════════════════════════════════
+    #  TRACE D'UN FLUX — le trajet complet d'une décision
+    #  Pédagogie pure : rien n'est recalculé, on déroule ce qui a déjà été
+    #  calculé sur le lot. Aucun réglage ici n'influence la détection.
+    # ════════════════════════════════════════════════════════════════════
+    if "last_scores" in st.session_state:
+        st.divider()
+        st.markdown(f"#### {t('d_s3')}")
+        st.markdown(f"**{t('tr_h')}**")
+        st.caption(t("tr_c"))
+
+        _scp = np.asarray(st.session_state.last_scores, dtype=float)
+        _tru = st.session_state.get("last_true")
+        _al = _scp > thr
+        if _tru is not None and len(_tru) == len(_scp):
+            _atk = np.array(["BENIGN" not in str(x).upper() for x in _tru])
+            _cas = [("tr_cat_hit", _atk & _al), ("tr_cat_miss", _atk & ~_al),
+                    ("tr_cat_fp", ~_atk & _al), ("tr_cat_tn", ~_atk & ~_al)]
+        else:
+            _atk = None
+            _cas = [("tr_cat_hit", _al), ("tr_cat_tn", ~_al)]
+
+        _dispo = [(k, m) for k, m in _cas if bool(m.any())]
+        if _dispo:
+            _lib = [f"{t(k)} ({int(m.sum())})" for k, m in _dispo]
+            _choix = st.selectbox(t("tr_pick"), _lib, help=t("tr_pick_help"))
+            _k, _m = _dispo[_lib.index(_choix)]
+            _j = int(np.flatnonzero(_m)[0])
+            _v = float(_scp[_j])
+
+            _d1, _d2, _d3 = st.columns(3)
+            _d1.markdown(f'<div class="kpi"><div class="kpi-l">{t("tr_score")}</div>'
+                         f'<div class="kpi-v">{_v:.3g}</div>'
+                         f'<div class="kpi-s">{t("tr_thr")} {thr:.3g}</div></div>',
+                         unsafe_allow_html=True)
+            _d2.markdown(f'<div class="kpi"><div class="kpi-l">{t("tr_verdict")}</div>'
+                         f'<div class="kpi-v">{t("tr_hit") if bool(_al[_j]) else t("tr_quiet")}</div>'
+                         f'<div class="kpi-s">{_v:.3g} {"&gt;" if bool(_al[_j]) else "≤"} {thr:.3g}</div></div>',
+                         unsafe_allow_html=True)
+            _lab_txt = str(_tru[_j]) if (_atk is not None) else t("tr_unknown")
+            _d3.markdown(f'<div class="kpi"><div class="kpi-l">{t("tr_true")}</div>'
+                         f'<div class="kpi-v" style="font-size:1rem;">{_lab_txt}</div>'
+                         f'<div class="kpi-s">#{_j}</div></div>',
+                         unsafe_allow_html=True)
+
+            # Les variables les plus écartées de la référence d'entraînement.
+            # C'est une DESCRIPTION du flux, pas l'explication de la décision :
+            # le gradient boosting combine ces variables de façon non linéaire.
+            _lot = st.session_state.get("last_batch")
+            if HGB is not None and _lot is not None:
+                try:
+                    _n = HGB["n_net"]
+                    _A = np.asarray(_lot[_j: _j + 1, :_n], dtype=float) \
+                        * scaler.scale_[:_n] + scaler.mean_[:_n]
+                    _Z = (_A - HGB["mu"]) / HGB["sd"]
+                    _top = np.argsort(-np.abs(_Z[0]))[:5]
+                    _noms = META.get("net_columns") or []
+                    st.markdown(f"**{t('tr_dev_h')}**")
+                    st.dataframe(
+                        pd.DataFrame({t("tr_feat"): [
+                            (_noms[int(i)] if int(i) < len(_noms) else f"colonne {int(i)}")
+                            for i in _top],
+                                      t("tr_z"): [round(float(_Z[0][i]), 2) for i in _top]}),
+                        width='stretch', hide_index=True)
+                    st.caption(t("tr_dev_c"))
+                except Exception:
+                    pass
+
+    # ════════════════════════════════════════════════════════════════════
+    #  REJEU FLUX PAR FLUX — un lot déjà noté, qui défile
+    # ════════════════════════════════════════════════════════════════════
+    if "last_scores" in st.session_state:
+        st.write("")
+        st.markdown(f"**{t('rj_h')}**")
+        st.caption(t("rj_c"))
+        if st.button(t("rj_btn"), width='stretch'):
+            _scp = np.asarray(st.session_state.last_scores, dtype=float)
+            _N = len(_scp)
+            _pas = max(1, _N // 60)          # 60 mises à jour au plus
+            _zone = st.empty()
+            _barre = st.progress(0.0)
+            _cum = 0
+            for _i in range(0, _N, _pas):
+                _cum += int((_scp[_i:_i + _pas] > thr).sum())
+                _fait = min(_N, _i + _pas)
+                _zone.markdown(t("rj_mid", done=f"{_fait:,}", alerts=f"{_cum:,}"))
+                _barre.progress(_fait / _N)
+                time.sleep(0.02)             # ~1,2 s au total
+            _barre.progress(1.0)
+            _zone.markdown(t("rj_end", alerts=f"{_cum:,}", n=f"{_N:,}"))
+        st.caption(t("rj_note"))
+
+    # ════════════════════════════════════════════════════════════════════
+    #  MODE DIRECT — flux notés à mesure que le collecteur les écrit
+    #  Ce n'est pas une simulation : les lignes viennent d'un fichier écrit
+    #  par un collecteur réseau, et sont notées au fur et à mesure.
+    # ════════════════════════════════════════════════════════════════════
+    st.write("")
+    st.markdown(f"**{t('lv_h')}**")
+    st.caption(t("lv_c"))
+    _lv_path = os.path.join(ROOT, "data", "live", "live_flows.csv")
+
+    if not os.path.exists(_lv_path):
+        st.info(t("lv_missing", p="data/live/live_flows.csv"))
+        with st.expander(t("lv_how")):
+            st.markdown(t("lv_how_body"))
+    else:
+        _lv_on = bool(st.session_state.get("lv_on"))
+        if st.button(t("lv_stop") if _lv_on else t("lv_start"), width='stretch'):
+            st.session_state.lv_on = not _lv_on
+            st.session_state.lv_skip = 0
+            st.session_state.lv_n = 0
+            st.session_state.lv_a = 0
+            st.session_state.lv_rows = []
+            st.rerun()
+
+        @st.fragment(run_every=1.5)
+        def _live_panel():
+            """Relit le fichier du collecteur toutes les deux secondes."""
+            if not st.session_state.get("lv_on"):
+                st.caption(t("lv_wait"))
+                return
+            _skip = int(st.session_state.get("lv_skip", 0))
+            try:
+                # skiprows évite de réanalyser tout l'historique à chaque tour
+                _df = pd.read_csv(_lv_path,
+                                  skiprows=range(1, _skip + 1) if _skip else None)
+            except Exception:
+                st.caption(t("lv_wait"))
+                return
+
+            _new = _df if len(_df) else _df.iloc[0:0]
+            if len(_new) > 2000:          # garde-fou : on ne noie pas l'écran
+                _new = _new.iloc[:2000]
+
+            if len(_new):
+                st.session_state.lv_skip = _skip + len(_new)
+                _X, _miss = live_prepare(_new)
+                if _miss:
+                    st.error(t("lv_cols", c=", ".join(str(x) for x in _miss[:6])))
+                    return
+                _sc = np.asarray(infer(_X)[0], dtype=float)
+                _hit = _sc > thr
+                st.session_state.lv_n = int(st.session_state.get("lv_n", 0)) + len(_sc)
+                st.session_state.lv_a = int(st.session_state.get("lv_a", 0)) + int(_hit.sum())
+                _rows = list(st.session_state.get("lv_rows", []))
+                _now = datetime.datetime.now().strftime("%H:%M:%S")
+                for _k in range(len(_sc)):
+                    _rows.append({"heure": _now,
+                                  "score": float(_sc[_k]),
+                                  "verdict": t("tr_hit") if bool(_hit[_k]) else t("tr_quiet")})
+                st.session_state.lv_rows = _rows[-12:]
+
+            _n = int(st.session_state.get("lv_n", 0))
+            _a = int(st.session_state.get("lv_a", 0))
+            _r = (100.0 * _a / _n) if _n else 0.0
+
+            # `role="status"` : le compteur est annoncé aux lecteurs d'écran
+            # quand il change. Le symbole ⚠ et le mot « alerte » portent
+            # l'information autant que la couleur (WCAG 1.4.1).
+            _html = (
+                f'<div class="lv-head" role="status">'
+                f'<span class="lv-dot" aria-hidden="true"></span>'
+                f'<b>{t("lv_live_on")}</b>'
+                f'<span>{t("lv_count", n=f"{_n:,}", a=f"{_a:,}", r=f"{_r:.1f}")}</span>'
+                f'</div>'
+                f'<div class="lv-bar" aria-hidden="true">'
+                f'<div class="lv-fill" style="width:{min(100.0, _r):.1f}%"></div></div>')
+            for _i, _c in enumerate(reversed(st.session_state.get("lv_rows", [])[-6:])):
+                _est_alerte = "⚠" in str(_c.get("verdict", ""))
+                _html += (
+                    f'<div class="lv-card{" lv-al" if _est_alerte else ""}" '
+                    f'style="animation-delay:{_i * 0.05:.2f}s">'
+                    f'<span class="lv-t">{_c.get("heure", "")}</span>'
+                    f'<span class="lv-s">{float(_c.get("score", 0.0)):.3g}</span>'
+                    f'<span class="lv-v">{_c.get("verdict", "")}</span></div>')
+            st.markdown(_html, unsafe_allow_html=True)
+            if not _n:
+                st.caption(t("lv_wait"))
+
+        # Animations. Injectées hors du fragment pour ne pas être réécrites
+        # à chaque rafraîchissement. `prefers-reduced-motion` les coupe : une
+        # animation n'est jamais une information, seulement un confort.
+        st.markdown("""<style>
+.lv-head{display:flex;align-items:center;gap:10px;font-size:.95rem;
+         color:var(--fg-2);margin-bottom:9px}
+.lv-dot{width:10px;height:10px;border-radius:50%;background:var(--ok);
+        animation:lv_pulse 1.6s ease-in-out infinite}
+@keyframes lv_pulse{
+  0%{box-shadow:0 0 0 0 rgba(94,224,138,.65)}
+  70%{box-shadow:0 0 0 10px rgba(94,224,138,0)}
+  100%{box-shadow:0 0 0 0 rgba(94,224,138,0)}}
+.lv-bar{height:8px;border-radius:999px;background:var(--surface-2);
+        border:1px solid var(--border);overflow:hidden;margin:2px 0 15px}
+.lv-fill{height:100%;background:linear-gradient(90deg,var(--info),var(--warn));
+         animation:lv_grow .9s cubic-bezier(.2,.8,.2,1) both}
+@keyframes lv_grow{from{width:0}}
+.lv-card{display:flex;gap:12px;align-items:center;padding:7px 11px;margin-bottom:6px;
+         border-radius:8px;background:var(--surface-2);
+         border-left:3px solid var(--ok);animation:lv_in .35s ease-out both}
+.lv-card.lv-al{border-left-color:var(--danger)}
+@keyframes lv_in{from{opacity:.35;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.lv-t{color:var(--fg-4);font-size:.82rem;min-width:62px}
+.lv-s{color:var(--fg-1);min-width:78px;font-variant-numeric:tabular-nums}
+.lv-v{margin-left:auto;font-size:.85rem;font-weight:600;color:var(--fg-2)}
+@media (prefers-reduced-motion:reduce){
+  .lv-dot,.lv-fill,.lv-card{animation:none !important}}
+</style>""", unsafe_allow_html=True)
+
+        _live_panel()
+
+    # ── Comparaison des trois détecteurs sur le même lot ──────────────────
+    st.divider()
+    st.markdown(f"#### {t('d_s4')}")
+    if st.button(t("cmp_btn"), width='stretch'):
+        _Xs = st.session_state.get("last_batch")
+        if _Xs is None:
+            st.info(t("cmp_nodata"))
+        else:
+            _labs = st.session_state.get("last_true")
+            if _labs is None:
+                st.caption(t("lab_none"))
+            _fpr = float(st.session_state.get("last_fpr", 5.0))
+            _rows = []
+            with st.spinner(t("cmp_btn")):
+                for _m, _name in (("modele", "MS-Transformer"),
+                                  ("one-class", "One-class"),
+                                  ("supervise", "Supervised" if LANG == "en" else "Supervisé")):
+                    if _m == "supervise" and HGB is None and SUP is None:
+                        continue
+                    if _m == "one-class" and FEAT is None:
+                        continue
+                    _sc, _, _, _ = infer(_Xs, mode_=_m)
+                    _thr = _cmp_threshold(_m, _fpr)
+                    _nb = int((_sc > _thr).sum())
+                    _rec = t("n_a")
+                    if _labs is not None:
+                        _lab = np.array([str(v) for v in _labs])
+                        _atk = ~np.array(["BENIGN" in str(v).upper() for v in _lab])
+                        if _atk.sum() > 0:
+                            _rec = f"{(_sc[_atk] > _thr).mean()*100:.1f} %"
+                    _rows.append({
+                        t("cmp_col"): _name,
+                        t("cmp_alerts"): f"{_nb}/{len(_sc)}",
+                        t("cmp_rate"): f"{_nb/len(_sc)*100:.1f} %",
+                        t("cmp_recall"): _rec,
+                        t("cmp_scale"): detector_scales()[_m]["kind"],
+                    })
+            if _rows:
+                st.markdown(f"**{t('cmp_h')}**")
+                st.caption(t("cmp_intro", fpr=f"{_fpr:g}"))
+                st.dataframe(pd.DataFrame(_rows), width='stretch', hide_index=True)
+                st.caption(t("cmp_note"))
 
 # ══════════════════════════════════════════════════════════════════════
 #  3 · RESULTS
