@@ -121,7 +121,7 @@ T = {
         "**Ce qui a changé la conclusion.** La famille Bot était bloquée à 49,34 % de "
         "rappel, et la cause avait été attribuée à l'information disponible. C'était faux : "
         "c'est la **complexité de la frontière** qui plafonnait. En portant `max_leaf_nodes` "
-        "de 31 à 63, Bot passe à **84,79 %** sans qu'aucune variable ne change. Le plafond "
+        "de 31 à 63, Bot passe à **84,65 %** sans qu'aucune variable ne change. Le plafond "
         "résiduel, lui, est bien réel : mesuré sur douze configurations, à 9 % comme à 10 % "
         "de fausses alertes, et jusqu'à 255 feuilles.\n\n"
         "**Ce qui ne fonctionne pas.** La représentation apprise **dégrade** le tabulaire : "
@@ -321,8 +321,8 @@ T = {
     "l1_t": ("Le plafond de la famille Bot", "The Bot family ceiling"),
     "l1_a": (
         "Sur les cinq familles inconnues, **quatre passent** le critère de 85 % de rappel. "
-        "La cinquième, **Bot**, s'arrête à **84,79 %** : le critère est manqué de 0,2 point, "
-        "soit **4 flux sur 1 433**. Ce n'est pas une imprécision de mesure, c'est un "
+        "La cinquième, **Bot**, s'arrête à **84,65 %** : le critère est manqué de 0,35 point, "
+        "soit **6 flux sur 1 433**. Ce n'est pas une imprécision de mesure, c'est un "
         "plafond reproduit.",
         "Across the five unseen families, **four pass** the 85 % recall criterion. The "
         "fifth, **Bot**, stops at **84.79 %**: the criterion is missed by 0.2 points, i.e. "
@@ -331,16 +331,16 @@ T = {
     "l1_p": (
         "Le plafond a été établi par mesure : **douze configurations** de complexité "
         "croissante, jusqu'à **255 feuilles**, à 9 % comme à 10 % de fausses alertes. "
-        "Aucune ne dépasse 84,8 %. Augmenter le budget de fausses alertes ne le déplace "
+        "Aucune ne dépasse 84,65 %. Augmenter le budget de fausses alertes ne le déplace "
         "pas davantage. Hiérarchie finale : **SQL Injection 100 % > XSS 99,69 % > "
-        "Brute Force 96,87 % > PortScan 94,27 % > Bot 84,79 %**.",
+        "Brute Force 96,87 % > PortScan 94,27 % > Bot 84,65 %**.",
         "The ceiling was established by measurement: **twelve configurations** of "
         "increasing complexity, up to **255 leaves**, at 9 % and at 10 % false alarms. "
         "None exceeds 84.8 %. Raising the false-alarm budget does not move it either. "
         "Final ranking: **SQL Injection 100 % > XSS 99.69 % > Brute Force 96.87 % > "
         "PortScan 94.27 % > Bot 84.79 %**."),
     "l1_r": (
-        "**Ce qui reste, et qui est plus grave que les 0,2 point manquants.** Avec "
+        "**Ce qui reste, et qui est plus grave que les 0,35 point manquants.** Avec "
         "**9,03 % de fausses alertes**, le détecteur produit **2 258 fausses alertes** sur "
         "25 001 flux bénins. À une prévalence réaliste de 1 % d'attaques, la précision "
         "tombe à **9,43 %** : environ **9,6 fausses alertes par détection utile**. C'est "
@@ -383,7 +383,7 @@ T = {
     "l3_p": (
         "Rappel mesuré famille par famille à 9 % de fausses alertes : **SQL Injection "
         "100 %**, **XSS 99,69 %**, **Brute Force 96,87 %**, **PortScan 94,27 %**, "
-        "**Bot 84,79 %**.",
+        "**Bot 84,65 %**.",
         "Per-family recall measured at 9 % false alarms: **SQL Injection 100 %**, "
         "**XSS 99.69 %**, **Brute Force 96.87 %**, **PortScan 94.27 %**, "
         "**Bot 84.79 %**."),
@@ -497,7 +497,7 @@ T = {
         "Le détecteur retenu atteint **93,12 % de rappel** à **9,03 % de fausses "
         "alertes** sur 5 495 attaques de cinq familles jamais vues à l'entraînement.\n\n"
         "Deux réserves comptent autant que ce chiffre. La famille **Bot plafonne à "
-        "84,79 %** : le critère de 85 % est manqué de 0,2 point, et ce plafond a été "
+        "84,65 %** : le critère de 85 % est manqué de 0,35 point, et ce plafond a été "
         "établi sur douze configurations jusqu'à 255 feuilles. Et à prévalence "
         "réaliste — 1 % d'attaques — la **précision tombe à 9,43 %**, soit 9,6 fausses "
         "alertes par détection. Le détail figure dans l'onglet Limites.",
@@ -513,6 +513,13 @@ T = {
 
     # provenance
     "flows":        ("flux", "flows"),
+    "missing":      ("non mesurable", "not measurable"),
+    "pv_missing":   ("Table non calculable : le rappel ou le taux de fausses alertes "
+                     "est absent de results/metrics.json. Relance "
+                     "`py 03_evaluation.py --score supervise --algo hgb --target-fpr 0.09`.",
+                     "Table not computable: recall or false-alarm rate is missing from "
+                     "results/metrics.json. Re-run "
+                     "`py 03_evaluation.py --score supervise --algo hgb --target-fpr 0.09`."),
     "pv_src":       ("Source", "Source"),
     "pv_train":     ("Entraînement", "Training"),
     "pv_test":      ("Test (Zero-Day)", "Test (zero-day)"),
@@ -639,38 +646,36 @@ HELP = {
     "h_modes_h": ("Les trois détecteurs", "The three detectors"),
     "h_mode1_t": ("MS-Transformer", "MS-Transformer"),
     "h_mode1": (
-        "Le modèle de recherche du projet : un réseau de neurones qui apprend une "
-        "représentation du trafic. On mesure ensuite l'écart de chaque flux à cette "
-        "représentation du normal. **Ses scores sont des distances** : un grand "
-        "nombre (des dizaines de milliers) veut dire « très loin du normal ». "
-        "Performance mesurée sur des attaques jamais vues : **0,8160** d'AUROC — "
-        "15 points sous le gradient boosting.",
-        "The project's research model: a neural network that learns a "
-        "representation of traffic. Each flow's distance to that representation of "
-        "'normal' is then measured. **Its scores are distances**: a large number "
-        "(tens of thousands) means 'far from normal'. Measured performance on "
-        "attacks never seen before: **0.8160** AUROC — 15 points below gradient boosting."),
+        "C'est un réseau de neurones qui apprend à <b>résumer</b> chaque flux en "
+        "quelques nombres, puis mesure l'écart entre ce résumé et celui du trafic "
+        "normal. Ses scores ne sont pas des probabilités mais des <b>distances</b>."
+        "<br><br><i>Note : 0,8160.</i>",
+        "A neural network that learns to <b>summarise</b> each flow as a few "
+        "numbers, then measures the gap between that summary and the one of normal "
+        "traffic. Its scores are not probabilities but <b>distances</b>."
+        "<br><br><i>Score: 0.8160.</i>"),
     "h_mode2_t": ("One-class", "One-class"),
     "h_mode2": (
-        "Une méthode qui n'apprend **que le trafic normal**, sans jamais voir "
-        "d'attaque. Tout ce qui s'éloigne de la normale est suspect. C'est "
-        "l'approche la plus prudente, mais la moins efficace ici : **0,7186** d'AUROC, "
-        "nettement moins que la supervision.",
-        "A method that learns **only normal traffic**, never seeing an attack. "
-        "Anything far from normal is suspicious. The most cautious approach, but "
-        "the least effective here: **0.7186** AUROC, well below supervision."),
+        "On lui montre <b>uniquement du trafic normal</b>, jamais une attaque. Il "
+        "mémorise à quoi ressemble une journée ordinaire. Ensuite, tout ce qui "
+        "s'écarte de cette routine est suspect."
+        "<br><br><i>Note : 0,7186.</i>",
+        "It is shown <b>only normal traffic</b>, never an attack. It memorises what "
+        "an ordinary day looks like. Anything that departs from that routine is "
+        "then treated as suspicious."
+        "<br><br><i>Score: 0.7186.</i>"),
     "h_mode3_t": ("Supervisé", "Supervised"),
     "h_mode3": (
-        "Un modèle qui a vu **des** attaques connues et apprend à les reconnaître, "
-        "puis généralise à des attaques inédites. **Ses scores sont des "
-        "probabilités** : 0,87 veut dire « 87 % de chances que ce soit une "
-        "attaque ». Performance : **0,9668** d'AUROC et 93,12 % de rappel. **C'est le "
-        "meilleur des trois.**",
-        "A model that has seen **some** known attacks, learns to recognise them, "
-        "then generalises to unseen ones. **Its scores are probabilities**: 0.87 "
-        "means '87 % chance this is an attack'. Performance: **0.9668** AUROC and "
-        "93.12 % recall. **The best of "
-        "the three.**"),
+        "On lui montre <b>des attaques connues</b>, étiquetées. Il apprend la "
+        "<i>forme</i> d'une attaque, pas seulement l'allure du calme. Il peut alors "
+        "reconnaître une attaque qu'il n'a jamais vue si elle ressemble, dans sa "
+        "structure, à celles qu'il connaît."
+        "<br><br><i>Note : 0,9668 — et 93,12 % des attaques trouvées.</i>",
+        "It is shown <b>known attacks</b>, labelled. It learns the <i>shape</i> of "
+        "an attack, not just the look of calm traffic. It can then recognise an "
+        "attack it has never seen, provided it resembles, in structure, the ones it "
+        "knows."
+        "<br><br><i>Score: 0.9668 — and 93.12 % of attacks found.</i>"),
 
     "h_glossary_h": ("Glossaire des mots techniques", "Glossary of technical words"),
     "h_g1_t": ("Flux (flow)", "Flow"),
@@ -1172,15 +1177,96 @@ def analysis_data():
             "fpr": fpr, "tpr": tpr, "auroc": auc, "classes": classes}
 
 
+def _derive_rates(g: dict) -> dict:
+    """
+    Complète les taux que 03_evaluation.py n'écrit pas en clair.
+
+    results/metrics.json ne contient pas le taux de fausses alertes, le rappel,
+    la précision ni le F1 : il contient la matrice de confusion. Ces quatre
+    indicateurs sont donc recalculés ici, une fois, plutôt que lus dans une clé
+    absente — c'est cette lecture qui faisait tomber la page sur un KeyError.
+
+    Convention d'écriture de 03_evaluation.py, vérifiée à la ligne 313 :
+        [[vrais négatifs, faux positifs],
+         [faux négatifs,  vrais positifs]]
+    """
+    need = ("fpr", "tpr_recall", "precision")
+    if any(g.get(k) is None for k in need):
+        tn = fp = fn = tp = None
+        try:
+            (tn, fp), (fn, tp) = g.get("confusion")
+        except Exception:
+            pass
+        if None not in (tn, fp, fn, tp):
+            if g.get("fpr") is None and (fp + tn):
+                g["fpr"] = fp / (fp + tn)
+            if g.get("tpr_recall") is None and (tp + fn):
+                g["tpr_recall"] = tp / (tp + fn)
+            if g.get("precision") is None and (tp + fp):
+                g["precision"] = tp / (tp + fp)
+    if g.get("f1") is None:
+        p, r = g.get("precision"), g.get("tpr_recall")
+        if p is not None and r is not None and (p + r):
+            g["f1"] = 2 * p * r / (p + r)
+    return g
+
+
+def _val(g: dict, key: str):
+    """Valeur numérique d'un indicateur, ou None s'il est absent ou NaN.
+
+    Les quatre taux dérivables sont recalculés ici si besoin, et pas seulement
+    au chargement du fichier : selon l'ordre de rendu, Streamlit peut rappeler
+    official_metrics() et repartir d'un dictionnaire neuf — c'est ce qui
+    laissait l'onglet Résultats afficher « non mesurable ».
+    """
+    if key in ("fpr", "tpr_recall", "precision", "f1") and g.get(key) is None:
+        _derive_rates(g)
+    v = g.get(key)
+    if v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return None if f != f else f
+
+
+def _num(g: dict, key: str, dec: int = 3) -> str:
+    """Indicateur brut, ou « non mesurable » — jamais une chaîne vide."""
+    v = _val(g, key)
+    return t("missing") if v is None else f"{v:.{dec}f}"
+
+
+def _pct(g: dict, key: str, dec: int = 1) -> str:
+    """Indicateur en pourcentage, ou « non mesurable »."""
+    v = _val(g, key)
+    return t("missing") if v is None else f"{v * 100:.{dec}f} %"
+
+
+def _ci(g: dict, dec: int = 3) -> str:
+    """Intervalle de confiance à 95 % de l'AUROC."""
+    ci = g.get("auroc_ci95")
+    try:
+        lo, hi = float(ci[0]), float(ci[1])
+    except Exception:
+        return t("missing")
+    if lo != lo or hi != hi:
+        return t("missing")
+    return f"{lo:.{dec}f} – {hi:.{dec}f}"
+
+
 @st.cache_data(show_spinner=False)
 def official_metrics():
     p = os.path.join(ROOT, "results", "metrics.json")
     if not os.path.exists(p):
         return None
     try:
-        return json.load(open(p))
+        d = json.load(open(p))
     except Exception:
         return None
+    if isinstance(d.get("global"), dict):
+        _derive_rates(d["global"])
+    return d
 
 
 @st.cache_data(show_spinner=False)
@@ -1532,19 +1618,22 @@ with tab_o:
     if om:
         g = om["global"]
         k1, k2, k3, k4 = st.columns(4)
+        _na, _nb = _val(g, "n_anomaly"), _val(g, "n_benign")
         k1.markdown(f'<div class="kpi"><div class="kpi-l">AUROC</div>'
-                    f'<div class="kpi-v">{g["auroc"]:.3f}</div>'
-                    f'<div class="kpi-s">IC95 % {g["auroc_ci95"][0]:.3f} – {g["auroc_ci95"][1]:.3f}</div></div>',
+                    f'<div class="kpi-v">{_num(g, "auroc")}</div>'
+                    f'<div class="kpi-s">IC95 % {_ci(g)}</div></div>',
                     unsafe_allow_html=True)
         k2.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_fpr")}</div>'
-                    f'<div class="kpi-v">{g["fpr"]*100:.1f} %</div>'
+                    f'<div class="kpi-v">{_pct(g, "fpr")}</div>'
                     f'<div class="kpi-s">cible ≤ 10 %</div></div>', unsafe_allow_html=True)
         k3.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_recall")}</div>'
-                    f'<div class="kpi-v">{g["tpr_recall"]*100:.1f} %</div>'
-                    f'<div class="kpi-s">{g["threshold_method"]}</div></div>', unsafe_allow_html=True)
+                    f'<div class="kpi-v">{_pct(g, "tpr_recall")}</div>'
+                    f'<div class="kpi-s">{g.get("threshold_method") or t("missing")}</div></div>',
+                    unsafe_allow_html=True)
         k4.markdown(f'<div class="kpi"><div class="kpi-l">n</div>'
-                    f'<div class="kpi-v">{g["n_anomaly"]:,}</div>'
-                    f'<div class="kpi-s">Zero-Day / {g["n_benign"]:,}</div></div>',
+                    f'<div class="kpi-v">{f"{int(_na):,}" if _na is not None else t("missing")}</div>'
+                    f'<div class="kpi-s">Zero-Day / '
+                    f'{f"{int(_nb):,}" if _nb is not None else t("missing")}</div></div>',
                     unsafe_allow_html=True)
 
     st.write("")
@@ -1943,19 +2032,20 @@ with tab_r:
 
         a1, a2, a3, a4 = st.columns(4)
         a1.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_auroc")}</div>'
-                    f'<div class="kpi-v">{g["auroc"]:.4f}</div>'
-                    f'<div class="kpi-s">{g["auroc_ci95"][0]:.4f} – {g["auroc_ci95"][1]:.4f}</div></div>',
+                    f'<div class="kpi-v">{_num(g, "auroc", 4)}</div>'
+                    f'<div class="kpi-s">{_ci(g, 4)}</div></div>',
                     unsafe_allow_html=True)
         a2.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_recall")}</div>'
-                    f'<div class="kpi-v">{g["tpr_recall"]*100:.1f} %</div>'
-                    f'<div class="kpi-s">{g["threshold_method"]}</div></div>', unsafe_allow_html=True)
+                    f'<div class="kpi-v">{_pct(g, "tpr_recall", 2)}</div>'
+                    f'<div class="kpi-s">{g.get("threshold_method") or t("missing")}</div></div>',
+                    unsafe_allow_html=True)
         a3.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_fpr")}</div>'
-                    f'<div class="kpi-v">{g["fpr"]*100:.1f} %</div>'
-                    f'<div class="kpi-s">target {g["target_fpr"]*100:.0f} %</div></div>',
+                    f'<div class="kpi-v">{_pct(g, "fpr", 2)}</div>'
+                    f'<div class="kpi-s">target {_pct(g, "target_fpr", 0)}</div></div>',
                     unsafe_allow_html=True)
         a4.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_prec")}</div>'
-                    f'<div class="kpi-v">{g["precision"]*100:.1f} %</div>'
-                    f'<div class="kpi-s">F1 {g["f1"]*100:.1f} %</div></div>',
+                    f'<div class="kpi-v">{_pct(g, "precision", 2)}</div>'
+                    f'<div class="kpi-s">F1 {_pct(g, "f1", 2)}</div></div>',
                     unsafe_allow_html=True)
 
         st.write("")
@@ -2074,8 +2164,9 @@ with tab_r:
         st.markdown(t("a_intro"))
         triv = om.get("trivial_baselines", {})
         if triv:
-            rowsm = [{"method": t("a_model"), "auroc": round(g["auroc"], 4),
-                      "recall": f'{g["tpr_recall"]*100:.1f} %'}]
+            _au = _val(g, "auroc")
+            rowsm = ([{"method": t("a_model"), "auroc": round(_au, 4),
+                       "recall": _pct(g, "tpr_recall")}] if _au is not None else [])
             for name, d in triv.items():
                 label = t("a_sum") if "somme" in name else t("a_lr")
                 rec = f'{d["recall"]*100:.1f} %' if "recall" in d else "—"
@@ -2086,7 +2177,8 @@ with tab_r:
             st.dataframe(dfm, width='stretch', hide_index=True)
 
             best_triv = max(d["auroc"] for d in triv.values())
-            if best_triv >= g["auroc"] - 0.02:
+            _au = _val(g, "auroc")
+            if _au is not None and best_triv >= _au - 0.02:
                 st.error(t("a_warn"))
             else:
                 st.success(t("a_ok"))
@@ -2104,17 +2196,22 @@ with tab_r:
         st.write("")
         st.markdown(f"**{t('pv_head')}**")
         st.caption(t("pv_intro"))
-        r_, f_ = g["tpr_recall"], g["fpr"]
-        rows_pv = []
-        for pi, ctx in [(g["n_anomaly"] / g["n_samples"], "this test set"),
-                        (0.05, "monitored network"), (0.01, "filtered SOC"),
-                        (0.001, "real SOC"), (0.0001, "large operator")]:
-            ppv = r_ * pi / (r_ * pi + f_ * (1 - pi)) if (r_ * pi + f_ * (1 - pi)) else 0
-            rows_pv.append({t("pv_prev"): f"{pi*100:.3f} %",
-                            t("pv_prec"): f"{ppv*100:.2f} %",
-                            t("pv_alert"): f"{(1-ppv)/ppv:.1f}" if ppv > 0 else "∞",
-                            t("pv_ctx"): ctx})
-        st.dataframe(pd.DataFrame(rows_pv), width='stretch', hide_index=True)
+        r_, f_ = _val(g, "tpr_recall"), _val(g, "fpr")
+        _ns, _na = _val(g, "n_samples"), _val(g, "n_anomaly")
+        if r_ is None or f_ is None or not _ns or _na is None:
+            st.info(t("pv_missing"))
+        else:
+            rows_pv = []
+            for pi, ctx in [(_na / _ns, "this test set"),
+                            (0.05, "monitored network"), (0.01, "filtered SOC"),
+                            (0.001, "real SOC"), (0.0001, "large operator")]:
+                den = r_ * pi + f_ * (1 - pi)
+                ppv = (r_ * pi / den) if den else 0.0
+                rows_pv.append({t("pv_prev"): f"{pi*100:.3f} %",
+                                t("pv_prec"): f"{ppv*100:.2f} %",
+                                t("pv_alert"): f"{(1-ppv)/ppv:.1f}" if ppv > 0 else "∞",
+                                t("pv_ctx"): ctx})
+            st.dataframe(pd.DataFrame(rows_pv), width='stretch', hide_index=True)
 
         st.write("")
         st.markdown(f"**{t('r_baseline_h')}**")
@@ -2172,7 +2269,7 @@ with tab_l:
     st.caption(t("l_intro"))
 
     _LIMITES = [
-        ("l1", "open",      "var(--warn)"),   # plafond Bot 84,79 %
+        ("l1", "open",      "var(--warn)"),   # plafond Bot 84,65 %
         ("l2", "ok",        "var(--ok)"),     # branche EDR supprimee
         ("l3", "part",      "var(--warn)"),   # 5 familles, pas toutes
         ("l4", "open",      "var(--warn)"),   # prevalence de test 18 %
