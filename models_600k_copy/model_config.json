@@ -1,0 +1,18 @@
+{
+  "seed": 42,
+  "epochs_run": 8,
+  "auroc": 0.9983462019580056,
+  "auroc_best": 0.9983462019580056,
+  "auroc_last": 0.9983462019580056,
+  "n_net": 77,
+  "n_sys": 25,
+  "embed_dim": 32,
+  "d": 64,
+  "n_tok_net": 4,
+  "n_tok_sys": 5,
+  "n_layers": 2,
+  "architecture": "dual-encoder-cross-attention",
+  "version": "V5",
+  "nhead": 4,
+  "n_params": 195260
+}

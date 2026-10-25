@@ -1,0 +1,171 @@
+# ============================================================
+#  MS-Transformer — Détection Zero-Day
+#  Règles d'exclusion Git
+# ============================================================
+#
+#  Principe : on versionne le CODE, les RÉSULTATS mesurés et la
+#  DOCUMENTATION. On exclut ce qui est volumineux, sensible, ou
+#  reconstructible par un script.
+#
+#  Poids actuel du dépôt tel qu'il est réglé ici : ~3 Mo.
+#  Sans ces règles : ~160 Mo, dont 111 Mo de Parquet et ~45 Mo
+#  de tableaux intermédiaires — au-delà des limites de GitHub
+#  (blocage à 100 Mo par fichier).
+#
+#  Reconstruire après un clone :
+#      1. placer les 8 fichiers CICIDS2017 dans data/
+#      2. py 01_data_preparation.py
+#      3. py 02_model_training.py --epochs 8
+#      4. py 03_evaluation.py --score supervise --algo hgb --target-fpr 0.09
+# ============================================================
+
+
+# ------------------------------------------------------------
+#  DONNÉES BRUTES — 111 Mo, non redistribuables
+#  CICIDS2017 se télécharge séparément (README §7).
+#  Les redistribuer poserait en plus une question de licence.
+# ------------------------------------------------------------
+data/*.parquet
+
+
+# ------------------------------------------------------------
+#  TABLEAUX INTERMÉDIAIRES — ~45 Mo
+#  X_train.npy (73 266 × 102) et X_test.npy (30 496 × 102)
+#  se régénèrent à l'identique par 01 (graine 42, vérifié).
+#  demo_sample.csv (20 000 flux) aussi.
+# ------------------------------------------------------------
+data/processed/*.npy
+data/processed/demo_sample.csv
+
+# Le descriptif du jeu et la liste des familles Zero-Day pèsent
+# quelques Ko et documentent le protocole : on les garde.
+!data/processed/meta.json
+!data/processed/zero_day_attacks.txt
+
+
+# ------------------------------------------------------------
+#  MODÈLES ENTRAÎNÉS — 1,6 Mo
+#  Conservés volontairement : l'interface en a besoin pour la
+#  démonstration, sans quoi le jury devrait réentraîner avant
+#  de voir quoi que ce soit.
+#  Pour un dépôt purement « code », décommenter les 4 lignes.
+# ------------------------------------------------------------
+# models/*.pt
+# models/*.pkl
+# models/*.npz
+# models/*.json
+*.joblib
+
+
+# ------------------------------------------------------------
+#  PYTHON
+# ------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+venv/
+.venv/
+env/
+ENV/
+.python-version
+pip-wheel-metadata/
+
+
+# ------------------------------------------------------------
+#  TESTS ET OUTILS D'ANALYSE
+# ------------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+
+# ------------------------------------------------------------
+#  JUPYTER
+# ------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+
+# ------------------------------------------------------------
+#  STREAMLIT — secrets locaux
+#  config.toml est versionné (thème, port, options serveur).
+#  secrets.toml ne doit JAMAIS l'être.
+# ------------------------------------------------------------
+.streamlit/secrets.toml
+.streamlit/secrets.*.toml
+
+
+# ------------------------------------------------------------
+#  SYSTÈME D'EXPLOITATION
+#  Windows, macOS, Linux — le projet est développé sous
+#  PowerShell, mais un clone peut venir de n'importe où.
+# ------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+
+# ------------------------------------------------------------
+#  ÉDITEURS ET IDE
+# ------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*#
+
+
+# ------------------------------------------------------------
+#  SAUVEGARDES ET ARCHIVES TEMPORAIRES
+#  Les dossiers de copie de configuration (processed_40k,
+#  processed_600k, OK_models_40k…) pèsent ~45 Mo chacun : ce
+#  sont des instantanés de travail, pas des livrables.
+# ------------------------------------------------------------
+*.bak
+*.old
+*.orig
+*.rej
+*.tmp
+*.temp
+~$*
+*.zip
+*.7z
+*.rar
+*.log
+
+results/*_copy/
+results/processed_*/
+results/models_*/
+results/OK_processed_*/
+results/OK_models_*/
+results/MAL_NOME*/
+results/processed_MAL_NOME*/
+
+
+# ------------------------------------------------------------
+#  SORTIES RÉGÉNÉRABLES VOLUMINEUSES DE results/
+#  Les figures et CSV (840 Ko) sont versionnés : ils
+#  documentent le mémoire. Seuls les binaires de modèle
+#  dupliqués sont exclus.
+# ------------------------------------------------------------
+results/*.pkl
+results/*.pt
+
+
+

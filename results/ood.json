@@ -1,0 +1,20 @@
+{
+  "espace": "features",
+  "rappel_at_5pct_fa": 0.0840764331210191,
+  "score_retenu": "knn5",
+  "famille_simulee": "FTP-Patator",
+  "auroc_pseudo_zd": 0.8808401499999999,
+  "auroc_test": 0.7137093842906884,
+  "recall": 0.09681528662420383,
+  "fpr": 0.07711691532338706,
+  "seuil": 2.995582387447357,
+  "comparaison_pseudo_zd": {
+    "maha": 0.8588682750000001,
+    "maha_log": 0.8715620000000001,
+    "ecdf_moy": 0.5940542499999999,
+    "ecdf_top10": 0.5,
+    "kmeans64": 0.8241705874999999,
+    "knn5": 0.8808401499999999,
+    "isoforest": 0.853193375
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "algo": "hgb",
+  "n_graines": 5,
+  "fpr_cible": 0.09,
+  "auroc": {
+    "moyenne": 0.9607,
+    "ecart_type": 0.0036,
+    "min": 0.9567,
+    "max": 0.9658
+  },
+  "rappel": {
+    "moyenne": 0.8764,
+    "ecart_type": 0.0407
+  },
+  "fpr": {
+    "moyenne": 0.0898,
+    "ecart_type": 0.0003
+  },
+  "par_famille": {
+    "Bot": {
+      "moyenne": 0.9119,
+      "ecart_type": 0.0089
+    },
+    "PortScan": {
+      "moyenne": 0.9599,
+      "ecart_type": 0.0064
+    },
+    "Web Attack - Brute Force": {
+      "moyenne": 0.9921,
+      "ecart_type": 0.0009
+    },
+    "Web Attack - Sql Injection": {
+      "moyenne": 0.9991,
+      "ecart_type": 0.0001
+    },
+    "Web Attack - XSS": {
+      "moyenne": 0.9978,
+      "ecart_type": 0.0006
+    }
+  },
+  "pire_famille_stable": true,
+  "graines": [
+    {
+      "graine": 0,
+      "auroc": 0.9567192344153367,
+      "rappel": 0.8283894449499545,
+      "fpr": 0.08999640014399424,
+      "par_famille": {
+        "Bot": 0.8978319862320653,
+        "PortScan": 0.9601318917540327,
+        "Web Attack - Brute Force": 0.9911976446112224,
+        "Web Attack - Sql Injection": 0.9991238445700267,
+        "Web Attack - XSS": 0.996999567870046
+      },
+      "pire": "Bot"
+    },
+    {
+      "graine": 1,
+      "auroc": 0.9592069165277066,
+      "rappel": 0.8695177434030937,
+      "fpr": 0.08995640174393024,
+      "par_famille": {
+        "Bot": 0.9112363070027096,
+        "PortScan": 0.9558382854889035,
+        "Web Attack - Brute Force": 0.9927263725777499,
+        "Web Attack - Sql Injection": 0.9991295586271787,
+        "Web Attack - XSS": 0.9976951228699318
+      },
+      "pire": "Bot"
+    },
+    {
+      "graine": 2,
+      "auroc": 0.9658061248068733,
+      "rappel": 0.9177434030937216,
+      "fpr": 0.08995640174393024,
+      "par_famille": {
+        "Bot": 0.9211444521981856,
+        "PortScan": 0.9670621512815362,
+        "Web Attack - Brute Force": 0.9927577182626981,
+        "Web Attack - Sql Injection": 0.9989467087983146,
+        "Web Attack - XSS": 0.9984365962784802
+      },
+      "pire": "Bot"
+    },
+    {
+      "graine": 3,
+      "auroc": 0.9626022311245859,
+      "rappel": 0.9182893539581438,
+      "fpr": 0.08927642894284228,
+      "par_famille": {
+        "Bot": 0.9115795451922328,
+        "PortScan": 0.9651145064150533,
+        "Web Attack - Brute Force": 0.9927273385255065,
+        "Web Attack - Sql Injection": 0.9990305149698775,
+        "Web Attack - XSS": 0.9982549164291096
+      },
+      "pire": "Bot"
+    },
+    {
+      "graine": 4,
+      "auroc": 0.9589448232807721,
+      "rappel": 0.8482256596906278,
+      "fpr": 0.08999640014399424,
+      "par_famille": {
+        "Bot": 0.9178872761349139,
+        "PortScan": 0.9515384574820238,
+        "Web Attack - Brute Force": 0.9909891359447661,
+        "Web Attack - Sql Injection": 0.9991162258271571,
+        "Web Attack - XSS": 0.9974410532781139
+      },
+      "pire": "Bot"
+    }
+  ]
+}

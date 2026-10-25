@@ -1,0 +1,50 @@
+{
+  "variante_retenue": "HistGradientBoosting \u00b7 standard",
+  "auroc": 0.967237547076825,
+  "rappel_5": 0.8085532302092812,
+  "rappel_10": 0.8533212010919017,
+  "toutes": [
+    {
+      "variante": "HistGradientBoosting \u00b7 standard",
+      "auroc": 0.967237547076825,
+      "rappel_5": 0.8085532302092812,
+      "rappel_10": 0.8533212010919017
+    },
+    {
+      "variante": "HistGradientBoosting \u00b7 rangs",
+      "auroc": 0.9647018778029589,
+      "rappel_5": 0.7350318471337579,
+      "rappel_10": 0.8578707916287535
+    },
+    {
+      "variante": "HGB + embedding (109 dims)",
+      "auroc": 0.9463475728486784,
+      "rappel_5": 0.6675159235668789,
+      "rappel_10": 0.8218380345768881
+    },
+    {
+      "variante": "RandomForest \u00b7 standard",
+      "auroc": 0.9451760965048204,
+      "rappel_5": 0.6662420382165605,
+      "rappel_10": 0.8240218380345768
+    },
+    {
+      "variante": "LogReg \u00b7 standard",
+      "auroc": 0.9026484727690056,
+      "rappel_5": 0.27443130118289355,
+      "rappel_10": 0.39963603275705184
+    },
+    {
+      "variante": "LogReg r\u00e9seau seul \u00b7 standard",
+      "auroc": 0.9026484727690056,
+      "rappel_5": 0.27443130118289355,
+      "rappel_10": 0.39963603275705184
+    },
+    {
+      "variante": "LogReg \u00b7 rangs",
+      "auroc": 0.8833310871386801,
+      "rappel_5": 0.2553230209281165,
+      "rappel_10": 0.7015468607825296
+    }
+  ]
+}

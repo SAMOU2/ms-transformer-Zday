@@ -1,0 +1,130 @@
+{
+  "protocole": "leave-one-family-out",
+  "fpr_cible": 0.09,
+  "scaler_ajuste_sur": "train complet (correction de la fuite de magnitude)",
+  "edr": "supprime",
+  "familles": 14,
+  "attaques_evaluees": 32802,
+  "resultats": {
+    "FTP-Patator": {
+      "n": 4000,
+      "auroc_maha": 0.6860097812499999,
+      "rappel_maha": 0.0015,
+      "auroc_sup": 0.969096125,
+      "rappel_sup": 0.99425,
+      "auroc_trivial": 0.33908143749999997
+    },
+    "DDoS": {
+      "n": 4000,
+      "auroc_maha": 0.854771875,
+      "rappel_maha": 0.6475,
+      "auroc_sup": 0.90564215625,
+      "rappel_sup": 0.63725,
+      "auroc_trivial": 0.7048833749999999
+    },
+    "DoS GoldenEye": {
+      "n": 4000,
+      "auroc_maha": 0.9097626875,
+      "rappel_maha": 0.729,
+      "auroc_sup": 0.9166333750000001,
+      "rappel_sup": 0.63625,
+      "auroc_trivial": 0.87117946875
+    },
+    "DoS Hulk": {
+      "n": 4000,
+      "auroc_maha": 0.9709750625,
+      "rappel_maha": 0.9515,
+      "auroc_sup": 0.8404845624999999,
+      "rappel_sup": 0.6285,
+      "auroc_trivial": 0.9557370625
+    },
+    "DoS Slowhttptest": {
+      "n": 4000,
+      "auroc_maha": 0.9556690625,
+      "rappel_maha": 0.843,
+      "auroc_sup": 0.9690825000000001,
+      "rappel_sup": 0.88575,
+      "auroc_trivial": 0.9216765625000001
+    },
+    "DoS slowloris": {
+      "n": 4000,
+      "auroc_maha": 0.871514375,
+      "rappel_maha": 0.59425,
+      "auroc_sup": 0.990883375,
+      "rappel_sup": 0.96625,
+      "auroc_trivial": 0.82130675
+    },
+    "SSH-Patator": {
+      "n": 3219,
+      "auroc_maha": 0.5264146085740913,
+      "rappel_maha": 0.0009319664492078285,
+      "auroc_sup": 0.7972470487729109,
+      "rappel_sup": 0.012426219322771047,
+      "auroc_trivial": 0.08597561354457907
+    },
+    "PortScan": {
+      "n": 1956,
+      "auroc_maha": 0.7030175741308794,
+      "rappel_maha": 0.10940695296523517,
+      "auroc_sup": 0.9750030674846625,
+      "rappel_sup": 0.9959100204498977,
+      "auroc_trivial": 0.6312071830265849
+    },
+    "Web Attack - Brute Force": {
+      "n": 1470,
+      "auroc_maha": 0.7019579081632653,
+      "rappel_maha": 0.050340136054421766,
+      "auroc_sup": 0.9728102040816328,
+      "rappel_sup": 0.9013605442176871,
+      "auroc_trivial": 0.6052851190476191
+    },
+    "Bot": {
+      "n": 1437,
+      "auroc_maha": 0.6312307759220599,
+      "rappel_maha": 0.03897007654836465,
+      "auroc_sup": 0.874786099512874,
+      "rappel_sup": 0.3562978427279054,
+      "auroc_trivial": 0.22157219902574807
+    },
+    "Web Attack - XSS": {
+      "n": 652,
+      "auroc_maha": 0.7146621932515338,
+      "rappel_maha": 0.029141104294478526,
+      "auroc_sup": 0.9675260736196319,
+      "rappel_sup": 0.9570552147239264,
+      "auroc_trivial": 0.6350513803680982
+    },
+    "Infiltration": {
+      "n": 36,
+      "auroc_maha": 0.9163611111111111,
+      "rappel_maha": 0.8333333333333334,
+      "auroc_sup": 0.6842291666666667,
+      "rappel_sup": 0.3611111111111111,
+      "auroc_trivial": 0.8928541666666667
+    },
+    "Web Attack - Sql Injection": {
+      "n": 21,
+      "auroc_maha": 0.664547619047619,
+      "rappel_maha": 0.047619047619047616,
+      "auroc_sup": 0.8430357142857143,
+      "rappel_sup": 0.09523809523809523,
+      "auroc_trivial": 0.47022619047619046
+    },
+    "Heartbleed": {
+      "n": 11,
+      "auroc_maha": 1.0,
+      "rappel_maha": 1.0,
+      "auroc_sup": 0.0026136363636363688,
+      "rappel_sup": 0.0,
+      "auroc_trivial": 0.9999772727272728
+    }
+  },
+  "moyennes": {
+    "auroc_maha": 0.7933496167107544,
+    "auroc_sup": 0.8363623646098378,
+    "auroc_trivial": 0.6540009843666257,
+    "rappel_maha": 0.41974947266172064,
+    "rappel_sup": 0.6019749319850994,
+    "familles_ok_85": 2
+  }
+}

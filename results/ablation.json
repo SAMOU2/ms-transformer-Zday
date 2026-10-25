@@ -1,0 +1,34 @@
+[
+  {
+    "variante": "tabular",
+    "label": "Tabulaire brut seul",
+    "synthetic": false,
+    "auroc": 0.9534600672388027,
+    "auroc_std": 0.0,
+    "recall_mean": 0.7551452005531801,
+    "recall_min": 0.5498953244940684,
+    "specificity": 0.9019639214431423,
+    "fpr": 0.0980360785568577,
+    "per_class": {
+      "PortScan": 0.7384054194893174,
+      "Web Attack": 0.9771348576761549,
+      "Bot": 0.5498953244940684
+    }
+  },
+  {
+    "variante": "fusion",
+    "label": "Tabulaire + embedding appris",
+    "synthetic": false,
+    "auroc": 0.9360870478738631,
+    "auroc_std": 0.0,
+    "recall_mean": 0.6994073381554445,
+    "recall_min": 0.3621772505233775,
+    "specificity": 0.9032838686452542,
+    "fpr": 0.09671613135474577,
+    "per_class": {
+      "PortScan": 0.805106826472121,
+      "Web Attack": 0.9309379374708353,
+      "Bot": 0.3621772505233775
+    }
+  }
+]

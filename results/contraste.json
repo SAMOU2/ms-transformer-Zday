@@ -1,0 +1,97 @@
+{
+  "fpr_cible": 0.05,
+  "familles": {
+    "Bot": {
+      "one_class": 0.03349616189811584,
+      "supervise": 0.5352407536636427,
+      "n": 1433
+    },
+    "PortScan": {
+      "one_class": 0.06878582595101615,
+      "supervise": 0.4507556018759771,
+      "n": 1919
+    },
+    "Web Attack - Brute Force": {
+      "one_class": 0.050340136054421766,
+      "supervise": 0.04897959183673469,
+      "n": 1470
+    },
+    "Web Attack - Sql Injection": {
+      "one_class": 0.047619047619047616,
+      "supervise": 0.047619047619047616,
+      "n": 21
+    },
+    "Web Attack - XSS": {
+      "one_class": 0.029141104294478526,
+      "supervise": 0.03067484662576687,
+      "n": 652
+    }
+  },
+  "global": {
+    "one_class": 0.04986351228389445,
+    "supervise": 0.31392174704276615
+  },
+  "auroc": {
+    "one_class": 0.7675796553215215,
+    "supervise": 0.9007984794347987
+  },
+  "protocole": "4 familles inconnues au test",
+  "validation_par_famille": {
+    "DoS slowloris": {
+      "supervise": 0.962,
+      "one_class": 0.585
+    },
+    "Web Attack - XSS": {
+      "supervise": 0.9325153374233128,
+      "one_class": 0.018404907975460124
+    },
+    "Web Attack - Brute Force": {
+      "supervise": 0.8748299319727891,
+      "one_class": 0.04897959183673469
+    },
+    "DoS Slowhttptest": {
+      "supervise": 0.87425,
+      "one_class": 0.833
+    },
+    "PortScan": {
+      "supervise": 0.7208588957055214,
+      "one_class": 0.024539877300613498
+    },
+    "FTP-Patator": {
+      "supervise": 0.6705,
+      "one_class": 0.00125
+    },
+    "DDoS": {
+      "supervise": 0.6285,
+      "one_class": 0.59875
+    },
+    "DoS Hulk": {
+      "supervise": 0.54675,
+      "one_class": 0.90325
+    },
+    "DoS GoldenEye": {
+      "supervise": 0.475,
+      "one_class": 0.515
+    },
+    "Infiltration": {
+      "supervise": 0.3611111111111111,
+      "one_class": 0.5555555555555556
+    },
+    "Bot": {
+      "supervise": 0.35490605427974947,
+      "one_class": 0.03409881697981907
+    },
+    "Web Attack - Sql Injection": {
+      "supervise": 0.047619047619047616,
+      "one_class": 0.0
+    },
+    "SSH-Patator": {
+      "supervise": 0.010872941907424665,
+      "one_class": 0.0009319664492078285
+    },
+    "Heartbleed": {
+      "supervise": 0.0,
+      "one_class": 1.0
+    }
+  }
+}
