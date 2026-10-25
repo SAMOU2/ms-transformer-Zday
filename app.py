@@ -1,16 +1,21 @@
 """
-PSM-HT · Zero-Day intrusion detection — bilingual EN/FR demonstration interface.
+MS-Transformer · détection d'intrusions Zero-Day — interface bilingue FR/EN.
 
 Structure
 ---------
-1. Overview      : what the system does, what problem it solves
-2. Live demo     : replay a traffic batch, inspect detections
-3. Results       : measured performance, per-class recall, baselines
-4. Method        : the model and the anomaly score
-5. Limitations   : what works, what does not, and why
+1. Vue d'ensemble : ce que fait le système, quel problème il résout
+2. Démonstration  : rejouer un lot de trafic, inspecter les détections
+3. Résultats      : performance mesurée, rappel par famille, baselines
+4. Méthode        : le modèle et le score
+5. Limites        : ce qui marche, ce qui ne marche pas, et pourquoi
+6. Aide           : glossaire en langage simple
 
-Everything displayed here is read from results/ and models/ at runtime.
-No number is hard-coded: if a metric is missing, the interface says "n/a".
+Détecteur retenu : HistGradientBoosting sur les 77 colonnes réseau.
+Score déployé    : AUROC 0,9668 · rappel 93,12 % à 9,03 % de fausses alertes.
+
+Tout ce qui s'affiche ici est lu dans results/ et models/ à l'exécution.
+Aucun chiffre n'est écrit à la main : si une mesure manque, l'interface
+affiche « non mesurable » et explique pourquoi.
 """
 
 import streamlit as st
@@ -36,8 +41,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 T = {
     # header
     "title":        ("Détection d'intrusions Zero-Day", "Zero-Day Intrusion Detection"),
-    "subtitle":     ("PSM-HT · encodeur tokenisé hiérarchique · score de Mahalanobis",
-                     "PSM-HT · hierarchical tokenized encoder · Mahalanobis scoring"),
+    "subtitle":     ("Gradient boosting sur les 77 colonnes réseau · familles jamais vues à l'entraînement",
+                     "Gradient boosting on the 77 network columns · families never seen in training"),
     "lang_label":   ("Langue", "Language"),
 
     # tabs
@@ -103,33 +108,39 @@ T = {
     "o_dataset":    ("Jeu de données", "Dataset"),
     "o_dataset_v":  ("CICIDS2017 · trafic réseau d'entreprise", "CICIDS2017 · enterprise network traffic"),
     "o_train":      ("Apprentissage", "Training"),
-    "o_train_v":    ("4 classes d'attaques connues", "4 known attack classes"),
+    "o_train_v":    ("9 classes d'attaques connues", "9 known attack classes"),
     "o_test":       ("Évaluation", "Evaluation"),
-    "o_test_v":     ("3 classes jamais vues (Zero-Day)", "3 classes never seen (Zero-Day)"),
-    "o_score":      ("Score", "Score"),
-    "o_score_v":    ("Distance de Mahalanobis", "Mahalanobis distance"),
+    "o_test_v":     ("5 familles jamais vues (Zero-Day)", "5 families never seen (Zero-Day)"),
+    "o_score":      ("Score retenu", "Retained score"),
+    "o_score_v":    ("Probabilité d'attaque — gradient boosting", "Attack probability — gradient boosting"),
     "o_honest_h":   ("Ce que ce travail démontre", "What this work shows"),
     "o_honest":     (
-        "**Ce travail montre d'abord une faille de protocole.** Sur CICIDS2017, une "
-        "régression logistique atteint AUROC 1.0000 et une simple somme de features 0.9895 "
-        "sur des classes censées être « jamais vues ». Le protocole Zero-Day classique ne "
-        "mesure donc pas la généralisation à l'inconnu.\n\n"
-        "**Ensuite, ce qui reste mesurable.** À protocole constant, le score d'anomalie "
-        "compte : la distance de Mahalanobis porte l'AUROC de 0.38 à 0.69 et la précision de "
-        "6 % à 67 %, avec un résultat reproductible au sous-échantillon près.\n\n"
-        "**Enfin, ce qui ne tient pas.** L'architecture à trois têtes ne dépasse pas les "
-        "composants pris séparément : l'ablation inverse le résultat (Δ jusqu'à +0.10 en "
-        "retirant le contrastif).",
-        "**This work first exposes a protocol flaw.** On CICIDS2017, logistic regression "
-        "reaches AUROC 1.0000 and a plain feature sum 0.9895 on supposedly \"never seen\" "
-        "classes. The standard Zero-Day protocol therefore does not measure generalisation to "
-        "the unknown.\n\n"
-        "**Then, what remains measurable.** At constant protocol, the anomaly score matters: "
-        "Mahalanobis distance lifts AUROC from 0.38 to 0.69 and precision from 6 % to 67 %, "
-        "reproducibly across subsamples.\n\n"
-        "**Finally, what does not hold.** The three-head architecture does not beat its "
-        "components taken separately: ablation reverses the result (Δ up to +0.10 when "
-        "removing the contrastive term)."),
+        "**Le résultat principal.** Un détecteur entraîné sans jamais voir cinq familles "
+        "d'attaque les reconnaît ensuite avec un **AUROC de 0,9668** et **93,12 % de "
+        "rappel** à 9,03 % de fausses alertes — 5 117 attaques interceptées sur 5 495.\n\n"
+        "**Ce qui a changé la conclusion.** La famille Bot était bloquée à 49,34 % de "
+        "rappel, et la cause avait été attribuée à l'information disponible. C'était faux : "
+        "c'est la **complexité de la frontière** qui plafonnait. En portant `max_leaf_nodes` "
+        "de 31 à 63, Bot passe à **84,79 %** sans qu'aucune variable ne change. Le plafond "
+        "résiduel, lui, est bien réel : mesuré sur douze configurations, à 9 % comme à 10 % "
+        "de fausses alertes, et jusqu'à 255 feuilles.\n\n"
+        "**Ce qui ne fonctionne pas.** La représentation apprise **dégrade** le tabulaire : "
+        "à classifieur, graine et hyperparamètres identiques, ajouter les 32 dimensions de "
+        "l'encodeur fait chuter l'AUROC de 0,9535 à 0,9361 et le rappel de Bot de 54,99 % "
+        "à 36,22 %. Le transformer ne se comporte pas en extracteur de caractéristiques.",
+        "**The main result.** A detector trained without ever seeing five attack families "
+        "then recognises them with **AUROC 0.9668** and **93.12 % recall** at 9.03 % false "
+        "alarms — 5,117 attacks caught out of 5,495.\n\n"
+        "**What changed the conclusion.** The Bot family was stuck at 49.34 % recall, and "
+        "the cause had been attributed to the available information. That was wrong: it was "
+        "the **complexity of the decision boundary** that capped it. Raising "
+        "`max_leaf_nodes` from 31 to 63 lifts Bot to **84.79 %** without changing a single "
+        "variable. The residual ceiling, however, is real: measured across twelve "
+        "configurations, at 9 % and at 10 % false alarms, and up to 255 leaves.\n\n"
+        "**What does not work.** The learned representation **degrades** the tabular "
+        "baseline: with identical classifier, seed and hyperparameters, adding the encoder's "
+        "32 dimensions drops AUROC from 0.9535 to 0.9361 and Bot recall from 54.99 % to "
+        "36.22 %. The transformer does not act as a feature extractor."),
 
     # demo
     "d_mode":       ("Source du flux", "Traffic source"),
@@ -178,6 +189,18 @@ T = {
     "c_map":        ("Carte des connexions — normal vs signalé", "Connection map — normal vs flagged"),
 
     # results
+    "lot_h":        ("Dernier lot complet noté hors navigateur",
+                     "Last full batch scored outside the browser"),
+    "lot_c":        ("`verifier_lot.py` note un fichier entier, sans plafond. "
+                     "Voici le dernier lot traité :",
+                     "`verifier_lot.py` scores a whole file with no cap. "
+                     "Here is the last batch processed:"),
+    "lot_aide":     ("Pour noter tous les flux d'un fichier : "
+                     "`py verifier_lot.py mon_fichier.parquet`",
+                     "To score every flow in a file: "
+                     "`py verifier_lot.py my_file.parquet`"),
+    "lot_col":      (["Fichier", "Flux", "Alertes", "Taux", "Rappel", "Durée"],
+                     ["File", "Flows", "Alerts", "Rate", "Recall", "Duration"]),
     "r_head":       ("Performance mesurée sur les classes Zero-Day",
                      "Measured performance on Zero-Day classes"),
     "r_note":       ("Mesuré sur {nt} connexions de test, dont {nb} saines et {na} attaques "
@@ -295,29 +318,38 @@ T = {
     "l_proof":       ("Mesure", "Measurement"),
     "l_left":        ("Ce qui reste", "What remains"),
 
-    "l1_t": ("Détection insuffisante", "Insufficient detection"),
+    "l1_t": ("Le plafond de la famille Bot", "The Bot family ceiling"),
     "l1_a": (
-        "Le protocole de test a été remplacé par une **validation croisée par famille** : "
-        "sept familles d'attaque, chacune retirée une fois de l'entraînement. Le score "
-        "n'est plus mesuré sur un test hétérogène où une seule moyenne masquait les "
-        "familles difficiles.",
-        "The test protocol was replaced by **leave-one-family-out validation**: seven attack "
-        "families, each withheld from training once. The score is no longer measured on a "
-        "heterogeneous test where a single average hid the hard families."),
+        "Sur les cinq familles inconnues, **quatre passent** le critère de 85 % de rappel. "
+        "La cinquième, **Bot**, s'arrête à **84,79 %** : le critère est manqué de 0,2 point, "
+        "soit **4 flux sur 1 433**. Ce n'est pas une imprécision de mesure, c'est un "
+        "plafond reproduit.",
+        "Across the five unseen families, **four pass** the 85 % recall criterion. The "
+        "fifth, **Bot**, stops at **84.79 %**: the criterion is missed by 0.2 points, i.e. "
+        "**4 flows out of 1,433**. This is not a measurement artefact but a reproduced "
+        "ceiling."),
     "l1_p": (
-        "Rappel à 5 % de fausses alertes : **de 13,2 % à 17,4 %** en moyenne sur les sept "
-        "familles. La hiérarchie des familles devient visible : DDoS 59,5 % et Infiltration "
-        "55,6 % contre Bot 2,6 % et PortScan 0,8 %.",
-        "Recall at 5 % false alarms: **from 13.2 % to 17.4 %**, averaged over the seven "
-        "families. Family ranking becomes visible: DDoS 59.5 % and Infiltration 55.6 % "
-        "against Bot 2.6 % and PortScan 0.8 %."),
+        "Le plafond a été établi par mesure : **douze configurations** de complexité "
+        "croissante, jusqu'à **255 feuilles**, à 9 % comme à 10 % de fausses alertes. "
+        "Aucune ne dépasse 84,8 %. Augmenter le budget de fausses alertes ne le déplace "
+        "pas davantage. Hiérarchie finale : **SQL Injection 100 % > XSS 99,69 % > "
+        "Brute Force 96,87 % > PortScan 94,27 % > Bot 84,79 %**.",
+        "The ceiling was established by measurement: **twelve configurations** of "
+        "increasing complexity, up to **255 leaves**, at 9 % and at 10 % false alarms. "
+        "None exceeds 84.8 %. Raising the false-alarm budget does not move it either. "
+        "Final ranking: **SQL Injection 100 % > XSS 99.69 % > Brute Force 96.87 % > "
+        "PortScan 94.27 % > Bot 84.79 %**."),
     "l1_r": (
-        "Le rappel reste **très en dessous** de l'objectif de 85 %. Le gain de +4 points ne "
-        "change pas la conclusion : ce système n'est pas exploitable en production. Le "
-        "problème est la nature du score, pas son réglage.",
-        "Recall remains **far below** the 85 % target. The +4 point gain does not change the "
-        "conclusion: this system is not production-ready. The problem is the nature of the "
-        "score, not its tuning."),
+        "**Ce qui reste, et qui est plus grave que les 0,2 point manquants.** Avec "
+        "**9,03 % de fausses alertes**, le détecteur produit **2 258 fausses alertes** sur "
+        "25 001 flux bénins. À une prévalence réaliste de 1 % d'attaques, la précision "
+        "tombe à **9,43 %** : environ **9,6 fausses alertes par détection utile**. C'est "
+        "le vrai obstacle à un usage opérationnel, pas le rappel.",
+        "**What remains — and it matters more than the missing 0.2 points.** With "
+        "**9.03 % false alarms**, the detector raises **2,258 false alerts** on 25,001 "
+        "benign flows. At a realistic 1 % attack prevalence, precision falls to **9.43 %**: "
+        "roughly **9.6 false alarms per useful detection**. That, not recall, is the real "
+        "obstacle to operational use."),
 
     "l2_t": ("Branche EDR simulée", "Simulated EDR branch"),
     "l2_a": (
@@ -341,60 +373,66 @@ T = {
         "Nothing left. The announced multimodality no longer exists in the final result; it "
         "remains a documented negative experiment."),
 
-    "l3_t": ("Trois classes Zero-Day seulement", "Only three zero-day classes"),
+    "l3_t": ("Cinq familles, pas toutes les attaques", "Five families, not every attack"),
     "l3_a": (
-        "Le nombre de familles évaluées passe de **trois à sept** : DDoS, PortScan, Bot, "
-        "Brute Force, XSS, SQL Injection, Infiltration. Les flux sont tirés directement des "
-        "fichiers bruts, sans filtre de taille.",
-        "The number of evaluated families goes from **three to seven**: DDoS, PortScan, Bot, "
-        "Brute Force, XSS, SQL Injection, Infiltration. Flows are taken directly from the raw "
-        "files, with no size filter."),
+        "Le jeu d'évaluation contient **cinq familles d'attaque absentes de "
+        "l'entraînement** : Bot, PortScan, Brute Force, XSS et SQL Injection, pour "
+        "**5 495 flux** au total.",
+        "The evaluation set contains **five attack families absent from training**: "
+        "Bot, PortScan, Brute Force, XSS and SQL Injection, for **5,495 flows** in total."),
     "l3_p": (
-        "Les sept familles présentes dans les fichiers sources sont toutes représentées, y "
-        "compris les plus rares : **SQL Injection (21 flux)** et **Infiltration (36 flux)**, "
-        "qui étaient absentes de l'évaluation précédente.",
-        "All seven families present in the source files are represented, including the "
-        "rarest: **SQL Injection (21 flows)** and **Infiltration (36 flows)**, which were "
-        "absent from the previous evaluation."),
+        "Rappel mesuré famille par famille à 9 % de fausses alertes : **SQL Injection "
+        "100 %**, **XSS 99,69 %**, **Brute Force 96,87 %**, **PortScan 94,27 %**, "
+        "**Bot 84,79 %**.",
+        "Per-family recall measured at 9 % false alarms: **SQL Injection 100 %**, "
+        "**XSS 99.69 %**, **Brute Force 96.87 %**, **PortScan 94.27 %**, "
+        "**Bot 84.79 %**."),
     "l3_r": (
-        "CICIDS2017 ne contient que ces sept familles. Toute attaque hors de cette liste — "
-        "rançongiciel, mouvement latéral, exfiltration — n'est pas couverte.",
-        "CICIDS2017 only contains these seven families. Any attack outside that list — "
-        "ransomware, lateral movement, exfiltration — is not covered."),
+        "CICIDS2017 ne contient que ces familles. Toute attaque hors de cette liste — "
+        "rançongiciel, mouvement latéral, exfiltration — n'est pas couverte, et rien dans "
+        "ce travail ne permet d'affirmer qu'elle serait détectée.",
+        "CICIDS2017 only contains these families. Any attack outside that list — "
+        "ransomware, lateral movement, exfiltration — is not covered, and nothing in this "
+        "work supports claiming it would be detected."),
 
-    "l4_t": ("Couverture partielle du trafic de test", "Partial coverage of test traffic"),
+    "l4_t": ("Une prévalence de test irréaliste", "An unrealistic test prevalence"),
     "l4_a": (
-        "Le découpage a été refait : dans la validation par famille, **chaque attaque du jeu "
-        "passe exactement une fois** en position d'inconnue. Il n'y a plus de famille "
-        "laissée de côté ni de test hétérogène.",
-        "The split was redone: in leave-one-family-out validation, **every attack in the "
-        "dataset is evaluated exactly once** as unseen. No family is left out and there is no "
-        "heterogeneous test split."),
+        "Le jeu de test compte **30 496 flux** : **25 001 bénins** et **5 495 attaques**, "
+        "soit **18 % d'attaques**. Chaque attaque y est évaluée une seule fois, et les "
+        "familles inconnues n'ont jamais été vues à l'entraînement.",
+        "The test set holds **30,496 flows**: **25,001 benign** and **5,495 attacks**, i.e. "
+        "**18 % attacks**. Every attack is evaluated once, and the unseen families never "
+        "appeared during training."),
     "l4_p": (
-        "Sept plis couvrant les sept familles, soit **10 132 flux d'attaque** tous évalués, "
-        "contre 4 familles sur un test unique auparavant.",
-        "Seven folds covering the seven families, i.e. **10,132 attack flows** all evaluated, "
-        "against 4 families on a single test split previously."),
+        "La précision mesurée à cette prévalence est de **69,39 %**. Ramenée à des "
+        "conditions réelles, elle devient **35,2 % à 5 %** d'attaques, **9,43 % à 1 %** et "
+        "**1,02 % à 0,1 %** — soit environ **97 fausses alertes par vraie détection**.",
+        "Precision measured at this prevalence is **69.39 %**. Rescaled to real "
+        "conditions it becomes **35.2 % at 5 %** attacks, **9.43 % at 1 %** and "
+        "**1.02 % at 0.1 %** — about **97 false alarms per true detection**."),
     "l4_r": (
-        "La prévalence du test reste artificielle : 4 000 bénins pour 4 000 attaques environ, "
-        "alors qu'un réseau réel en voit moins de 1 %. La précision opérationnelle s'effondre "
-        "en conséquence (voir la table de prévalence).",
-        "Test prevalence remains artificial: about 4,000 benign for 4,000 attacks, whereas a "
-        "real network sees under 1 %. Operational precision collapses accordingly (see the "
-        "prevalence table)."),
+        "Le chiffre de 93,12 % de rappel est donc **honnête sur le rappel** et "
+        "**optimiste sur l'usage** : il décrit ce que le modèle trouve, pas ce qu'un "
+        "opérateur pourrait traiter. La table de prévalence de l'onglet Résultats donne "
+        "les quatre scénarios chiffrés.",
+        "The 93.12 % recall figure is therefore **honest about recall** and **optimistic "
+        "about deployment**: it describes what the model finds, not what an operator could "
+        "process. The prevalence table in the Results tab gives the four quantified "
+        "scenarios."),
 
     "l5_t": ("Un seul jeu de données", "A single dataset"),
     "l5_a": (
-        "La validation par famille fournit une **validation croisée inter-familles** : sept "
-        "découpages indépendants au lieu d'un seul. C'est un progrès réel sur la robustesse "
-        "de la mesure.",
-        "Leave-one-family-out provides **cross-family validation**: seven independent splits "
-        "instead of one. This is a real gain in measurement robustness."),
+        "La robustesse de la mesure a été testée en réentraînant **cinq modèles** sur des "
+        "sous-échantillons différents du train, à configuration identique.",
+        "Measurement robustness was tested by retraining **five models** on different "
+        "subsamplings of the training data, with identical configuration."),
     "l5_p": (
-        "Sept configurations évaluées au lieu d'une, avec une dispersion des résultats "
-        "désormais mesurable entre familles.",
-        "Seven configurations evaluated instead of one, with result dispersion now "
-        "measurable across families."),
+        "AUROC moyen **0,9607 ± 0,0036**. Mais le rappel, lui, varie de **87,64 % ± 4,07 %** "
+        "autour de la valeur déployée : les **93,12 %** annoncés sont un tirage favorable, "
+        "et la valeur à citer est **87,6 % ± 4,1 %**.",
+        "Mean AUROC **0.9607 ± 0.0036**. Recall, however, varies by **87.64 % ± 4.07 %** "
+        "around the deployed figure: the announced **93.12 %** is a favourable draw, and "
+        "the defensible value is **87.6 % ± 4.1 %**."),
     "l5_r": (
         "**Non traitée au sens strict.** Il s'agit toujours de CICIDS2017. Une validation "
         "inter-jeux exigerait CICIDS2018 ou UNSW-NB15, et reste le premier travail à "
@@ -426,41 +464,51 @@ T = {
     "mode_one_class": ("One-class", "One-class"),
     "mode_supervise": ("Supervisé", "Supervised"),
     "mode_modele_d": (
-        "Le modèle complet : deux encodeurs et fusion par cross-attention. "
-        "Détecte 99,2 % des familles inconnues, Bot compris (96,6 %).",
-        "The full model: two encoders and cross-attention fusion. Detects "
-        "99.2 % of unseen families, including Bot (96.6 %)."),
+        "Le transformer du projet, noté par distance au centroïde bénin. "
+        "AUROC 0,8160 sur les familles inconnues — 15 points sous le gradient "
+        "boosting. Conservé comme référence, pas comme détecteur.",
+        "The project's transformer, scored by distance to the benign centroid. "
+        "AUROC 0.8160 on unseen families — 15 points below gradient boosting. "
+        "Kept as a reference, not as a detector."),
     "mode_one_class_d": (
-        "N'a jamais vu d'attaque : ajusté sur le trafic bénin seul. "
-        "Détecte 86,2 % des familles inconnues, mais 46,2 % sur Bot.",
-        "Never saw an attack: fitted on benign traffic only. Detects 86.2 % of "
-        "unseen families, but 46.2 % on Bot."),
+        "N'a jamais vu d'attaque : ajusté sur le trafic bénin seul. C'est "
+        "l'approche la plus prudente, et la moins efficace ici : AUROC 0,7186 "
+        "contre 0,9668 pour le gradient boosting.",
+        "Never saw an attack: fitted on benign traffic only. The most cautious "
+        "approach, and the least effective here: AUROC 0.7186 against 0.9668 for "
+        "gradient boosting."),
     "mode_supervise_d": (
-        "A vu les familles connues à l'entraînement. Détecte 99,8 %, mais tombe "
-        "à 0 % sur une famille structurellement différente (DDoS).",
-        "Saw the known families during training. Detects 99.8 %, but drops to "
-        "0 % on a structurally different family (DDoS)."),
+        "A vu les familles connues à l'entraînement. AUROC 0,9668 et 93,12 % de "
+        "rappel à 9,03 % de fausses alertes : c'est le détecteur retenu.",
+        "Saw the known families during training. AUROC 0.9668 and 93.12 % recall "
+        "at 9.03 % false alarms: this is the retained detector."),
 
     # en-tête
     "eyebrow":      ("CICIDS2017 · Détection d'anomalies Zero-Day",
                      "CICIDS2017 · Zero-Day anomaly detection"),
     "badge_offline": ("Hors ligne", "Offline"),
-    "badge_neg":    ("Résultat négatif documenté", "Documented negative result"),
+    "badge_neg":    ("Résultats négatifs publiés", "Negative results published"),
     "badge_audit":  ("Baselines publiées", "Baselines published"),
 
     # bandeau de statut
     "st_title":     ("Statut de l'étude", "Study status"),
     "st_body":      (
         "Ce système est un **prototype de recherche**, pas un produit de détection. "
-        "Sur les trois familles d'attaques absentes de l'entraînement, il atteint "
-        "**13,2 % de rappel** à 5 % de fausses alertes. Une méthode sans apprentissage "
-        "fait mieux sur les mêmes données : ces chiffres mesurent la séparabilité du jeu, "
-        "pas une capacité de détection. Le détail figure dans l'onglet Limites.",
-        "This system is a **research prototype**, not a detection product. On the three "
-        "attack families absent from training it reaches **13.2 % recall** at 5 % false "
-        "alerts. A method with no learning does better on the same data: these figures "
-        "measure the separability of the dataset, not a detection capability. Details are "
-        "in the Limitations tab."),
+        "Le détecteur retenu atteint **93,12 % de rappel** à **9,03 % de fausses "
+        "alertes** sur 5 495 attaques de cinq familles jamais vues à l'entraînement.\n\n"
+        "Deux réserves comptent autant que ce chiffre. La famille **Bot plafonne à "
+        "84,79 %** : le critère de 85 % est manqué de 0,2 point, et ce plafond a été "
+        "établi sur douze configurations jusqu'à 255 feuilles. Et à prévalence "
+        "réaliste — 1 % d'attaques — la **précision tombe à 9,43 %**, soit 9,6 fausses "
+        "alertes par détection. Le détail figure dans l'onglet Limites.",
+        "This system is a **research prototype**, not a detection product. The retained "
+        "detector reaches **93.12 % recall** at **9.03 % false alarms** on 5,495 attacks "
+        "from five families never seen during training.\n\n"
+        "Two caveats matter as much as that figure. The **Bot family peaks at 84.79 %**: "
+        "the 85 % criterion is missed by 0.2 points, and that ceiling was established "
+        "across twelve configurations up to 255 leaves. And at realistic prevalence — "
+        "1 % attacks — **precision falls to 9.43 %**, i.e. 9.6 false alarms per detection. "
+        "Details are in the Limitations tab."),
     "st_more":      ("Voir les limites", "See limitations"),
 
     # provenance
@@ -546,10 +594,14 @@ if "lang" not in st.session_state:
 LANG = st.session_state.lang
 
 
-def t(key: str, *a, **k) -> str:
+def t(key: str, *a, **k):
+    """Texte traduit. Renvoie la valeur telle quelle si ce n'est pas une chaîne
+    (certaines entrées sont des listes de libellés de colonnes)."""
     fr, en = T[key]
     s = fr if LANG == "fr" else en
-    return s.format(*a, **k)
+    if not isinstance(s, str):
+        return s
+    return s.format(*a, **k) if (a or k) else s
 
 
 
@@ -591,29 +643,33 @@ HELP = {
         "représentation du trafic. On mesure ensuite l'écart de chaque flux à cette "
         "représentation du normal. **Ses scores sont des distances** : un grand "
         "nombre (des dizaines de milliers) veut dire « très loin du normal ». "
-        "Performance mesurée sur des attaques jamais vues : 0,72.",
+        "Performance mesurée sur des attaques jamais vues : **0,8160** d'AUROC — "
+        "15 points sous le gradient boosting.",
         "The project's research model: a neural network that learns a "
         "representation of traffic. Each flow's distance to that representation of "
         "'normal' is then measured. **Its scores are distances**: a large number "
         "(tens of thousands) means 'far from normal'. Measured performance on "
-        "attacks never seen before: 0.72."),
+        "attacks never seen before: **0.8160** AUROC — 15 points below gradient boosting."),
     "h_mode2_t": ("One-class", "One-class"),
     "h_mode2": (
         "Une méthode qui n'apprend **que le trafic normal**, sans jamais voir "
         "d'attaque. Tout ce qui s'éloigne de la normale est suspect. C'est "
-        "l'approche la plus prudente, mais la moins efficace ici : 0,72.",
+        "l'approche la plus prudente, mais la moins efficace ici : **0,7186** d'AUROC, "
+        "nettement moins que la supervision.",
         "A method that learns **only normal traffic**, never seeing an attack. "
         "Anything far from normal is suspicious. The most cautious approach, but "
-        "the least effective here: 0.72."),
+        "the least effective here: **0.7186** AUROC, well below supervision."),
     "h_mode3_t": ("Supervisé", "Supervised"),
     "h_mode3": (
         "Un modèle qui a vu **des** attaques connues et apprend à les reconnaître, "
         "puis généralise à des attaques inédites. **Ses scores sont des "
         "probabilités** : 0,87 veut dire « 87 % de chances que ce soit une "
-        "attaque ». Performance : 0,97. **C'est le meilleur des trois.**",
+        "attaque ». Performance : **0,9668** d'AUROC et 93,12 % de rappel. **C'est le "
+        "meilleur des trois.**",
         "A model that has seen **some** known attacks, learns to recognise them, "
         "then generalises to unseen ones. **Its scores are probabilities**: 0.87 "
-        "means '87 % chance this is an attack'. Performance: 0.97. **The best of "
+        "means '87 % chance this is an attack'. Performance: **0.9668** AUROC and "
+        "93.12 % recall. **The best of "
         "the three.**"),
 
     "h_glossary_h": ("Glossaire des mots techniques", "Glossary of technical words"),
@@ -758,7 +814,7 @@ st.markdown("""
   --surface-2:   #101a2b;
   --border:      #22304a;
   --border-ui:   #4e6390;   /* composants interactifs — ratio 3:1 min */
-  --fg-1:        var(--fg-1);   /* 17,97:1 */
+  --fg-1:        #f1f5f9;       /* 17,97:1 */
   --fg-2:        #dbe4ef;   /* 15,33:1 */
   --fg-3:        #aebdcd;   /* 10,27:1 */
   --fg-4:        #8b9ab0;   /* 6,89:1  — labels, légendes */
@@ -917,7 +973,7 @@ def load_model():
         z = np.load(sp, allow_pickle=False)
         sup = {"coef": z["coef"], "intercept": float(z["intercept"][0]),
                "threshold": float(z["threshold"])}
-    # Détecteur retenu par l'évaluation : gradient boosting (AUROC 0.9672 en
+    # Détecteur retenu par l'évaluation : gradient boosting (AUROC 0,9668 en
     # cross-famille). Il exige le même prétraitement que 03_evaluation.py :
     # les statistiques sont donc lues dans le .npz écrit à l'entraînement.
     hgb = None
@@ -1044,7 +1100,7 @@ def hgb_score(X_scaled: np.ndarray) -> np.ndarray:
     """Probabilité d'attaque du gradient boosting — le détecteur retenu.
 
     Meilleur que la frontière linéaire de +6,5 points d'AUROC sur les
-    familles inédites (0.9672 contre 0.9026) : la frontière n'est pas
+    familles inédites (0,9668 contre 0,9026) : la frontière n'est pas
     linéaire dans cet espace de features.
     """
     n = HGB["n_net"]
@@ -1428,7 +1484,7 @@ if MODE == "supervise" and HGB is None:
     st.error(
         "⚠️ **Modèle supervisé introuvable** — les scores affichés proviennent du "
         "Mahalanobis sur embedding (AUROC 0.7186), **pas** du gradient boosting "
-        "(AUROC 0.9672).\n\n"
+        "(AUROC 0,9668).\n\n"
         "Fichiers attendus : `models/supervised_hgb.pkl` et "
         "`models/supervised_hgb.npz`. Régénère-les avec "
         "`py 03_evaluation.py --score supervise --algo hgb --target-fpr 0.09`.",
@@ -1850,6 +1906,37 @@ with tab_r:
         st.warning("results/metrics.json missing — run `py 03_evaluation.py`.")
     else:
         g = om["global"]
+        # ── Lot complet noté hors navigateur (verifier_lot.py) ────────────
+        _lot_path = os.path.join(ROOT, "results", "lot_resume.json")
+        if os.path.exists(_lot_path):
+            try:
+                _lot = json.load(open(_lot_path, encoding="utf-8"))
+                _c = t("lot_col")
+                st.markdown(f"**{t('lot_h')}**")
+                st.caption(t("lot_c"))
+                _r = {
+                    _c[0]: os.path.basename(str(_lot.get("fichier", "—"))),
+                    _c[1]: f'{_lot.get("flux", 0):,}'.replace(",", " "),
+                    _c[2]: f'{_lot.get("alertes", 0):,}'.replace(",", " "),
+                    _c[3]: f'{_lot.get("taux_alerte", 0)*100:.2f} %',
+                    _c[4]: (f'{_lot["rappel"]*100:.2f} %' if "rappel" in _lot
+                            else t("n_a")),
+                    _c[5]: f'{_lot.get("duree_s", 0):.1f} s',
+                }
+                st.dataframe(pd.DataFrame([_r]), width='stretch', hide_index=True)
+                if "rappel" in _lot:
+                    st.caption(
+                        f'{"Rappel" if LANG == "fr" else "Recall"} '
+                        f'{_lot["rappel"]*100:.2f} % · FPR {_lot["fpr"]*100:.2f} % · '
+                        f'{("précision" if LANG == "fr" else "precision")} '
+                        f'{_lot["precision"]*100:.2f} %')
+                st.write("")
+            except Exception:
+                pass
+        else:
+            st.caption(t("lot_aide"))
+            st.write("")
+
         st.markdown(f"#### {t('r_head')}")
         st.caption(t("r_note", nt=f"{g['n_samples']:,}", nb=f"{g['n_benign']:,}",
                      na=f"{g['n_anomaly']:,}"))
@@ -2085,10 +2172,10 @@ with tab_l:
     st.caption(t("l_intro"))
 
     _LIMITES = [
-        ("l1", "open",      "var(--warn)"),   # insuffisante
-        ("l2", "ok",        "var(--ok)"),   # supprimee
-        ("l3", "ok",        "var(--ok)"),   # 3 -> 7 familles
-        ("l4", "ok",        "var(--ok)"),   # chaque famille evaluee
+        ("l1", "open",      "var(--warn)"),   # plafond Bot 84,79 %
+        ("l2", "ok",        "var(--ok)"),     # branche EDR supprimee
+        ("l3", "part",      "var(--warn)"),   # 5 familles, pas toutes
+        ("l4", "open",      "var(--warn)"),   # prevalence de test 18 %
         ("l5", "part",      "var(--warn)"),   # reste CICIDS2017
     ]
     _LBL = {"ok": t("l_status_ok"), "part": t("l_status_part"), "open": t("l_status_open")}
@@ -2121,19 +2208,19 @@ with tab_l:
     _b1, _b2, _b3, _b4 = st.columns(4)
     _b1.markdown(
         f'<div class="kpi"><div class="kpi-l">{t("l_status_ok")}</div>'
-        f'<div class="kpi-v">3 / 5</div><div class="kpi-s">L2 · L3 · L4</div></div>',
+        f'<div class="kpi-v">1 / 5</div><div class="kpi-s">L2</div></div>',
         unsafe_allow_html=True)
     _b2.markdown(
         f'<div class="kpi"><div class="kpi-l">{t("l_status_part")}</div>'
-        f'<div class="kpi-v">1 / 5</div><div class="kpi-s">L5</div></div>',
+        f'<div class="kpi-v">2 / 5</div><div class="kpi-s">L3 · L5</div></div>',
         unsafe_allow_html=True)
     _b3.markdown(
         f'<div class="kpi"><div class="kpi-l">{t("l_status_open")}</div>'
-        f'<div class="kpi-v">1 / 5</div><div class="kpi-s">L1</div></div>',
+        f'<div class="kpi-v">2 / 5</div><div class="kpi-s">L1 · L4</div></div>',
         unsafe_allow_html=True)
     _b4.markdown(
         f'<div class="kpi"><div class="kpi-l">{t("flows")}</div>'
-        f'<div class="kpi-v">10 132</div><div class="kpi-s">attaques évaluées</div></div>',
+        f'<div class="kpi-v">5 495</div><div class="kpi-s">attaques évaluées</div></div>',
         unsafe_allow_html=True)
 
     st.markdown(
@@ -2150,14 +2237,11 @@ try:
     _h = hashlib.md5(open(os.path.join(ROOT, "models", "ms_encoder.pt"), "rb").read()
                      ).hexdigest()[:10]
 except Exception:
-    _h = "n/a"
+    _h = "empreinte non calculable"
 
 _n_tr = META.get("train_shape") or ["?", "?"]
 _n_te = META.get("test_shape") or ["?", "?"]
-try:
-    _zz = "PortScan · Bot · SQL Injection · XSS"
-except Exception:
-    _zz = "—"
+_zz = "Bot · PortScan · Brute Force · XSS · SQL Injection"
 
 st.markdown(
     f'<div class="foot">'
@@ -2165,7 +2249,7 @@ st.markdown(
     f'<b>{t("pv_train")}</b> <code>{_n_tr[0]}</code> {t("flows")} · '
     f'<b>{t("pv_test")}</b> <code>{_n_te[0]}</code> {t("flows")} ({_zz})<br>'
     f'<b>{t("pv_model")}</b> <code>ms_encoder.pt · {_h}</code> · '
-    f'<b>{t("pv_score")}</b> <code>Mahalanobis · 78 features</code> · '
+    f'<b>{t("pv_score")}</b> <code>gradient boosting · 77 features</code> · '
     f'<code>seed {META.get("seed", "?")}</code> · '
     f'{t("pv_run")}<br>'
     f'<span class="mono">{t("a11y_note")}</span>'
