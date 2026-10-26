@@ -16,6 +16,12 @@ Score déployé    : AUROC 0,9668 · rappel 93,12 % à 9,03 % de fausses alertes
 Tout ce qui s'affiche ici est lu dans results/ et models/ à l'exécution.
 Aucun chiffre n'est écrit à la main : si une mesure manque, l'interface
 affiche « non mesurable » et explique pourquoi.
+
+Habillage : thème « terminal » — fond sombre, vert phosphore, police à
+chasse fixe, curseur qui clignote, lignes de balayage. Tout tient dans le
+bloc <style> de ce fichier : aucune feuille externe, aucune image. Les
+effets (machine à écrire, pulsation, glitch) sont neutralisés par
+prefers-reduced-motion et à l'impression.
 """
 
 import streamlit as st
@@ -577,6 +583,7 @@ T = {
                      "The glossary is also reachable from each unit's Guide button: both "
                      "say the same thing, in the same place."),
     "u_guide":      ("Guide", "Guide"),
+    "term_online":  ("EN LIGNE", "ONLINE"),
     "u_guide_b":    ("Le parcours se lit de haut en bas, à gauche. Chaque nœud est un "
                      "bouton : Tab pour le parcourir, Entrée pour l'ouvrir. Un cadenas "
                      "s'ouvre aussi — il dit ce qui manque, il ne refuse pas.",
@@ -711,7 +718,7 @@ T = {
     "pc_done":      ("étape faite", "step done"),
     "pc_todo":      ("étape à venir", "step to come"),
 
-    # parcours façon maquette : nœuds, haltes, mascotte
+    # parcours façon terminal : nœuds, haltes, ligne d'état
     "duo_step":     ("Étape {n}", "Step {n}"),
     "jalon_a":      ("Halte · une analyse existe",
                      "Checkpoint · an analysis exists"),
@@ -1261,85 +1268,108 @@ HELP = {
 st.markdown("""
 <style>
 /* ══════════════════════════════════════════════════════════════════
-   SYSTÈME DE DESIGN « PARCOURS » — CLAIR, ROND, CONTRASTÉ
+   SYSTÈME DE DESIGN « TERMINAL » — MODE HACKER, SOMBRE ET MONOSPACE
    ──────────────────────────────────────────────────────────────────
-   Tout le thème tient dans ce bloc : aucune feuille de style externe,
-   aucun dossier .streamlit à copier à côté de app.py. Les widgets natifs
-   (curseur, cases, boutons radio) sont repeints plus bas.
+   Toute la page est un terminal : fond quasi noir, vert phosphore,
+   police à chasse fixe, curseur qui clignote, lignes de balayage.
+   Le parcours et son contenu ne changent pas — seule l'enveloppe
+   change de monde.
 
-   La page n'est plus un tableau de bord sombre : c'est un parcours.
-   Un bandeau d'unité vert, un chemin qui descend, des jalons à
-   atteindre. La forme change ; la règle de fond ne change pas :
-
-   · chaque couleur de texte est vérifiée sur son fond — le plus
-     faible couple du thème est à 4,54:1 (AA exige 4,5:1) ;
+   Règles tenues, comme avant :
+   · chaque couleur de texte est vérifiée sur son fond — le plus faible
+     couple du thème est à 4,9:1 (AA exige 4,5:1) ; le vert phosphore
+     #39ff88 sur #05080a monte à 13,4:1 ;
    · aucun état n'est porté par la seule couleur : un symbole
      (✓ ● 🔒 ✕ ◐) et un mot l'accompagnent toujours ;
-   · le vert vif #58cc02 sert de SURFACE, jamais de texte sur blanc.
-     Là où du texte doit s'écrire, on descend à #2c8000 (5,0:1) ou
-     on pose de l'encre sombre #16350a sur le vert clair (6,4:1) ;
-   · le bouton vert primaire utilise #3d8a00 : le blanc y garde
-     4,6:1, ce que #58cc02 ne permettrait pas (2,1:1).
+   · le vert phosphore sert de SURFACE pour les boutons primaires ; le
+     texte y est posé en encre sombre #04120a (13,4:1), jamais en blanc
+     (qui ne tiendrait que 1,6:1) ;
+   · tous les effets (machine à écrire, clignotement, balayage, glitch)
+     sont neutralisés par prefers-reduced-motion et à l'impression.
    ══════════════════════════════════════════════════════════════════ */
 :root {
-  /* surfaces */
-  --bg:          #ffffff;
-  --surface:     #ffffff;
-  --surface-2:   #f7f7f7;
-  --surface-3:   #f0f4f8;
-  --border:      #e5e5e5;
-  --border-ui:   #a8a8a8;   /* composants interactifs — ≥3:1 sur blanc */
+  --bg:          #05080a;
+  --surface:     #0a1210;
+  --surface-2:   #0d1714;
+  --surface-3:   #122019;
+  --border:      #1d3128;
+  --border-ui:   #2f6b4f;   /* composants interactifs — ≥3:1 sur le fond */
 
-  /* texte */
-  --fg-1:        #3c3c3c;   /* 11,6:1 */
-  --fg-2:        #4b4b4b;   /*  9,0:1 */
-  --fg-3:        #5f5f5f;   /*  6,4:1 */
-  --fg-4:        #6f6f6f;   /*  4,77:1 — plancher AA, y compris sur les
-                               fonds teintés (#f7f7f7, #e8ffd6) */
+  --fg-1:        #d9ffe8;   /* 17,6:1 */
+  --fg-2:        #b6d9c6;   /* 12,4:1 */
+  --fg-3:        #9dc0ab;   /*  9,3:1 */
+  --fg-4:        #7ba38a;   /*  6,3:1 */
 
-  /* états */
-  --ok:          #2c8000;   /*  5,0:1 */
-  --warn:        #8a5200;   /*  5,3:1 */
-  --info:        #0b63b8;   /*  6,0:1 */
-  --danger:      #c62828;   /*  5,6:1 */
-  --focus:       #0b6bcb;
+  --ok:          #39ff88;   /* 13,4:1 */
+  --warn:        #ffcc00;   /* 13,1:1 */
+  --info:        #5fd7ff;   /* 12,2:1 */
+  --danger:      #ff6b6b;   /*  7,4:1 */
+  --focus:       #39ff88;
 
-  /* vert du parcours — surface, ombre 3D, encre */
-  --duo:         #58cc02;
-  --duo-d:       #46a302;
-  --duo-dd:      #3a7f02;
-  --duo-btn:     #3d8a00;
-  --duo-ink:     #16350a;
-  --duo-soft:    #e8ffd6;
-  --duo-line:    #b8e986;
+  /* vert du parcours — surface, ombre, encre */
+  --duo:         #39ff88;
+  --duo-d:       #22c96a;
+  --duo-dd:      #17a355;
+  --duo-btn:     #39ff88;
+  --duo-ink:     #04120a;
+  --duo-soft:    #0b2418;
+  --duo-line:    #1d5f3d;
 
-  /* or des jalons */
-  --gold:        #ffc800;
-  --gold-d:      #e5a500;
-  --gold-dd:     #b88200;
+  --gold:        #ffcc00;
+  --gold-d:      #e0a800;
+  --gold-dd:     #b88600;
+
+  --mono: ui-monospace, "Cascadia Mono", "Consolas", "JetBrains Mono",
+          "SF Mono", Menlo, monospace;
 
   --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 34px;
-  --radius: 16px;
-  --radius-s: 12px;
-  --shadow-card: 0 1px 0 rgba(0,0,0,0.04);
+  --radius: 6px;          /* le terminal n'a pas de coins tendres */
+  --radius-s: 5px;
 }
 
-/* ---- base ------------------------------------------------------- */
+/* ---- base : la page EST un terminal ------------------------------ */
 html { font-size: 16px; }
 body, .stApp, [data-testid="stAppViewContainer"] {
-  font-family: "Segoe UI", system-ui, -apple-system, "Trebuchet MS",
-               "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--mono);
+  background: var(--bg) !important;
+  color: var(--fg-2) !important;
 }
-.stApp { background: var(--bg) !important; color: var(--fg-2) !important; }
-.block-container { padding-top: 3.9rem;   /* dégage la barre d'outils fixe */
-                   padding-bottom: var(--sp-5); max-width: 1180px; }
+.stApp { background-image:
+  radial-gradient(ellipse at 50% -10%, rgba(57,255,136,0.10), transparent 60%),
+  radial-gradient(ellipse at 90% 110%, rgba(95,215,255,0.05), transparent 55%) !important;
+  background-repeat: no-repeat !important;
+}
+/* Lignes de balayage : un calque fixe, transparent aux clics. Il donne
+   la texture d'un vieil écran sans toucher au contraste du texte (3 %
+   d'opacité). */
+.stApp::after {
+  content: ""; position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom, rgba(255,255,255,0.030) 0 1px, transparent 1px 3px);
+  opacity: .55;
+}
+/* Le faisceau qui descend lentement : la seule animation plein écran. */
+.stApp::before {
+  content: ""; position: fixed; left: 0; right: 0; height: 28vh; top: -30vh;
+  z-index: 9997; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(57,255,136,0.045), transparent);
+  animation: beam 9s linear infinite;
+}
+@keyframes beam { to { transform: translateY(160vh); } }
 
-h1, h2, h3, h4 { color: var(--fg-1) !important; font-weight: 800;
-                 letter-spacing: -0.01em; line-height: 1.28; }
-h2 { font-size: 1.45rem !important; }
-h3 { font-size: 1.2rem !important; }
-p, li { color: var(--fg-2); line-height: 1.66; }
-a { color: var(--info); text-underline-offset: 2px; }
+.block-container { padding-top: 3.9rem; padding-bottom: var(--sp-5);
+                   max-width: 1180px; }
+
+h1, h2, h3, h4 { color: var(--fg-1) !important; font-family: var(--mono);
+                 font-weight: 700; letter-spacing: -0.01em; line-height: 1.28; }
+h2 { font-size: 1.35rem !important; }
+h3 { font-size: 1.12rem !important; }
+p, li { color: var(--fg-2); line-height: 1.68; }
+a { color: var(--info); text-underline-offset: 3px; }
+strong, b { color: var(--fg-1); }
+code, kbd, pre, .mono { font-family: var(--mono) !important; }
+code { background: var(--surface-2); color: var(--duo);
+       border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; }
 hr { border-color: var(--border) !important; }
 
 /* ---- focus visible : indispensable au clavier -------------------- */
@@ -1347,9 +1377,10 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible,
 input:focus-visible, select:focus-visible,
 div[role="radiogroup"] label:focus-visible,
 .stTabs [role="tab"]:focus-visible {
-  outline: 3px solid var(--focus) !important;
+  outline: 2px solid var(--focus) !important;
   outline-offset: 3px !important;
-  border-radius: 6px;
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(57,255,136,0.55) !important;
 }
 
 /* ---- respect de la préférence système ---------------------------- */
@@ -1360,234 +1391,293 @@ div[role="radiogroup"] label:focus-visible,
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+  .stApp::before { display: none; }
 }
 
+/* ---- effets de texte : machine à écrire, curseur, glitch ---------- */
+.typed {
+  display: inline-block; overflow: hidden; white-space: nowrap;
+  vertical-align: bottom; max-width: 100%;
+  width: calc(var(--n, 20) * 1ch);
+  animation: typing 1.25s steps(var(--n, 20)) both;
+  border-right: 2px solid var(--duo);
+  padding-right: 2px;
+}
+@keyframes typing { from { width: 0; } to { width: calc(var(--n, 20) * 1ch); } }
+.cur-blink { display: inline-block; color: var(--duo);
+             animation: blink 1.05s steps(1, end) infinite; }
+@keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
 /* ---- en-tête ----------------------------------------------------- */
-.eyebrow { display: inline-block; font-size: 0.72rem; letter-spacing: 0.12em;
-           text-transform: uppercase; color: var(--duo-dd); font-weight: 800;
-           background: var(--duo-soft); border: 1.5px solid var(--duo-line);
-           border-radius: 999px; padding: 3px 11px; margin-bottom: var(--sp-2); }
-.proj-title { font-size: 2.05rem; font-weight: 800; color: var(--fg-1);
-              line-height: 1.16; letter-spacing: -0.022em; margin: 0; }
-.proj-sub { font-size: 1rem; color: var(--fg-3); margin-top: var(--sp-2);
+.eyebrow { display: inline-block; font-size: 0.7rem; letter-spacing: 0.16em;
+           text-transform: uppercase; color: var(--duo); font-weight: 700;
+           border: 1px solid var(--duo-line); background: #07130d;
+           border-radius: 3px; padding: 3px 10px; margin-bottom: var(--sp-2); }
+.proj-title {
+  font-size: 2rem; font-weight: 700; color: var(--fg-1);
+  line-height: 1.16; letter-spacing: -0.02em; margin: 0;
+  text-shadow: 0 0 14px rgba(57,255,136,0.35);
+  animation: glitch 6s steps(1, end) infinite;
+}
+@keyframes glitch {
+  0%, 92%, 100% { text-shadow: 0 0 14px rgba(57,255,136,0.35); }
+  93% { text-shadow: 2px 0 rgba(255,107,107,0.85), -2px 0 rgba(95,215,255,0.85); }
+  94% { text-shadow: -3px 0 rgba(255,107,107,0.7), 2px 0 rgba(95,215,255,0.8);
+        transform: translateX(1px); }
+  95% { text-shadow: 0 0 14px rgba(57,255,136,0.35); transform: none; }
+}
+.proj-sub { font-size: 0.95rem; color: var(--fg-3); margin-top: var(--sp-2);
             line-height: 1.6; max-width: 64ch; }
+
+/* barre d'invite : la première chose que lit l'analyste */
+.termbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: var(--sp-2) 0 0; padding: 7px 12px;
+  background: #07100c; border: 1px solid var(--border);
+  border-left: 3px solid var(--duo); border-radius: 4px;
+  font-family: var(--mono); font-size: 0.86rem; color: var(--fg-2);
+}
+.termbar .u { color: var(--duo); font-weight: 700; }
+.termbar .p { color: var(--info); }
+.termbar .cmd { color: var(--fg-1); }
+.termbar .ok { margin-left: auto; color: var(--duo); font-weight: 700;
+               letter-spacing: 0.08em; font-size: 0.78rem; }
+.termbar .ok::before { content: "● "; animation: blink 1.4s steps(1,end) infinite; }
 
 /* ---- badges d'état : symbole + libellé, jamais la couleur seule -- */
 .badge { display: inline-flex; align-items: center; gap: 6px;
-         font-size: 0.78rem; font-weight: 700; padding: 4px 11px;
-         border-radius: 999px; margin-right: var(--sp-1); margin-top: var(--sp-2);
-         border: 1.5px solid var(--border); background: var(--surface);
-         color: var(--fg-2); }
-.badge-ok   { border-color: #b6dfa0; color: var(--ok);   background: #f4fbe9; }
-.badge-warn { border-color: #eccf9b; color: var(--warn); background: #fdf6e8; }
-.badge-info { border-color: #b6d3ee; color: var(--info); background: #eef6fd; }
+         font-size: 0.76rem; font-weight: 700; padding: 4px 10px;
+         border-radius: 3px; margin-right: var(--sp-1); margin-top: var(--sp-2);
+         border: 1px solid var(--border); background: var(--surface);
+         color: var(--fg-2); letter-spacing: 0.04em; }
+.badge-ok   { border-color: var(--duo-line); color: var(--duo); background: #07130d; }
+.badge-warn { border-color: #5c4a00; color: var(--warn); background: #14100a; }
+.badge-info { border-color: #1b4a5c; color: var(--info); background: #08131a; }
 
 /* ══════════════════════════════════════════════════════════════════
-   BOUTONS — la touche la plus reconnaissable de la maquette :
-   une pastille épaisse qui s'enfonce de 4 px quand on clique.
+   BOUTONS — style terminal : rectangle net, trait phosphore,
+   un reflet qui traverse au survol.
    ══════════════════════════════════════════════════════════════════ */
 .stButton > button, .stDownloadButton > button, .stFormSubmitButton > button,
 [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
-  border-radius: var(--radius-s) !important;
-  border: 2px solid var(--border) !important;
-  border-bottom-width: 4px !important;
-  background: var(--surface) !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border-ui) !important;
+  background: var(--surface-2) !important;
   color: var(--fg-1) !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.04em;
-  font-size: 0.85rem !important;
-  padding: 9px 16px !important;
-  transition: transform 60ms ease, border-bottom-width 60ms ease,
-              background 120ms ease;
+  font-family: var(--mono) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em;
+  font-size: 0.82rem !important;
+  padding: 8px 15px !important;
+  text-transform: uppercase;
+  transition: color 90ms ease, border-color 90ms ease, box-shadow 140ms ease,
+              background 140ms ease;
   box-shadow: none !important;
+  position: relative; overflow: hidden;
 }
 .stButton > button:hover, .stDownloadButton > button:hover,
 .stFormSubmitButton > button:hover,
 [data-testid="stBaseButton-secondary"]:hover {
-  background: var(--surface-2) !important;
-  color: var(--fg-1) !important;
-  border-color: #d4d4d4 !important;
+  background: #10251a !important;
+  color: var(--duo) !important;
+  border-color: var(--duo) !important;
+  box-shadow: 0 0 14px rgba(57,255,136,0.30), inset 0 0 12px rgba(57,255,136,0.08) !important;
 }
 .stButton > button:active, .stDownloadButton > button:active,
-.stFormSubmitButton > button:active {
-  transform: translateY(3px);
-  border-bottom-width: 2px !important;
-}
-/* bouton primaire : le seul plein, et le seul à porter du blanc */
+.stFormSubmitButton > button:active { background: #153627 !important; }
+/* bouton primaire : phosphore plein, encre sombre — le seul plein */
 [data-testid="stBaseButton-primary"],
 .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
-  background: var(--duo-btn) !important;
-  border-color: var(--duo-dd) !important;
-  color: #ffffff !important;
+  background: var(--duo) !important;
+  border-color: var(--duo) !important;
+  color: var(--duo-ink) !important;
+  box-shadow: 0 0 18px rgba(57,255,136,0.45) !important;
 }
 [data-testid="stBaseButton-primary"]:hover,
 .stButton > button[kind="primary"]:hover {
-  background: #347800 !important;
-  color: #ffffff !important;
+  background: #6dffab !important;
+  color: var(--duo-ink) !important;
+  box-shadow: 0 0 26px rgba(57,255,136,0.75) !important;
 }
 .stButton > button:disabled, [data-testid="stBaseButton-secondary"]:disabled {
   opacity: 1 !important;
-  background: var(--surface-2) !important;
-  color: var(--fg-4) !important;
-  border-color: var(--border) !important;
+  background: #0a0f0d !important;
+  color: #5c7064 !important;
+  border-color: #1a2a22 !important;
   cursor: not-allowed;
+  box-shadow: none !important;
 }
 
-/* ---- champs de formulaire : arrondis, bordés, lisibles ---------- */
+/* ---- champs de formulaire ---------------------------------------- */
 [data-baseweb="select"] > div, [data-baseweb="input"] > div,
 .stTextInput input, .stNumberInput input, [data-testid="stFileUploader"] section {
-  border-radius: var(--radius-s) !important;
-  border: 2px solid var(--border) !important;
-  background: var(--surface) !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border-ui) !important;
+  background: #07100c !important;
+  color: var(--fg-1) !important;
+  font-family: var(--mono) !important;
 }
 [data-testid="stFileUploader"] section { border-style: dashed !important; }
 div[role="radiogroup"] label {
-  border: 2px solid var(--border); border-radius: var(--radius-s);
-  padding: 6px 12px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 5px 11px; background: #07100c;
+  font-size: 0.82rem; font-weight: 700;
 }
 div[role="radiogroup"] label:has(input:checked) {
-  border-color: var(--duo); background: var(--duo-soft);
+  border-color: var(--duo); background: #0b2418; color: var(--duo);
+  box-shadow: 0 0 10px rgba(57,255,136,0.22);
 }
 [data-testid="stSegmentedControl"] button,
 [data-testid="stButtonGroup"] button {
-  border-radius: 999px !important; font-weight: 700 !important;
+  border-radius: 3px !important; font-weight: 700 !important;
+  font-family: var(--mono) !important; text-transform: uppercase;
+  font-size: 0.78rem !important;
 }
 
-/* ---- widgets natifs : l'accent rouge de Streamlit devient vert ----
+/* ---- widgets natifs : l'accent rouge de Streamlit devient vert ---
    Streamlit peint le curseur, la case cochée et le point du bouton radio
    avec sa couleur primaire, rouge #FF4B4B par défaut. Ici le rouge veut
    dire « menace » : un curseur de réglage ne doit pas annoncer un danger.
    Ces règles remplacent le fichier de thème de Streamlit — l'application
    tient ainsi dans un seul fichier, sans dossier .streamlit à copier. */
 [data-testid="stSlider"] [role="slider"] {
-  background-color: var(--duo-d) !important;
-  box-shadow: 0 0 0 2px #ffffff, 0 2px 0 var(--duo-dd) !important;
+  background-color: var(--duo) !important;
+  box-shadow: 0 0 10px rgba(57,255,136,0.85) !important;
 }
 [data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stSliderTrack"],
 [data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stSliderTrackFill"] {
-  background: var(--duo) !important;
+  background: var(--duo-d) !important;
 }
 [data-testid="stSlider"] [data-testid="stThumbValue"] {
-  color: var(--duo-dd) !important; font-weight: 800 !important;
+  color: var(--duo) !important; font-weight: 700 !important;
+  font-family: var(--mono) !important;
 }
 [data-testid="stCheckbox"] [data-baseweb="checkbox"] span[aria-checked="true"],
 [data-testid="stCheckbox"] input:checked + span {
-  background-color: var(--duo-d) !important;
-  border-color: var(--duo-dd) !important;
+  background-color: var(--duo) !important;
+  border-color: var(--duo) !important;
 }
 div[role="radiogroup"] [data-baseweb="radio"] div[aria-checked="true"],
 div[role="radiogroup"] input:checked + div {
-  background-color: var(--duo-d) !important;
-  border-color: var(--duo-dd) !important;
+  background-color: var(--duo) !important;
+  border-color: var(--duo) !important;
 }
-/* les messages natifs : même famille de couleurs, bord gauche franc */
-[data-testid="stAlert"] [data-testid="stAlertContentInfo"] { color: var(--fg-2); }
 
-/* ---- onglets : une rangée de pastilles, pas un soulignement ----- */
+/* ---- onglets : sept terminaux dans une barre --------------------- */
 [data-baseweb="tab-list"] {
-  gap: 6px; border-bottom: 2px solid var(--border); padding-bottom: 8px;
+  gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 8px;
   flex-wrap: wrap;
 }
 [data-baseweb="tab-highlight"] { display: none !important; }
 [data-baseweb="tab"] {
-  border: 2px solid var(--border) !important;
-  border-radius: 999px !important;
-  padding: 5px 15px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 3px !important;
+  padding: 5px 13px !important;
   color: var(--fg-3) !important;
+  font-family: var(--mono) !important;
   font-weight: 700 !important;
-  font-size: 0.87rem !important;
-  background: var(--surface) !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.03em;
+  background: #07100c !important;
 }
-[data-baseweb="tab"]:hover { color: var(--fg-1) !important;
-                             background: var(--surface-2) !important; }
+[data-baseweb="tab"]:hover { color: var(--duo) !important;
+                             border-color: var(--border-ui) !important; }
 [data-baseweb="tab"][aria-selected="true"] {
-  color: #ffffff !important;
-  background: var(--duo-btn) !important;
-  border-color: var(--duo-dd) !important;
+  color: var(--duo-ink) !important;
+  background: var(--duo) !important;
+  border-color: var(--duo) !important;
+  box-shadow: 0 0 14px rgba(57,255,136,0.45) !important;
 }
 
-/* ---- encadrés natifs : couleur douce, bord gauche franc --------- */
+/* ---- encadrés natifs --------------------------------------------- */
 [data-testid="stAlert"] {
-  border-radius: var(--radius-s) !important;
-  border: 2px solid var(--border) !important;
-  border-left-width: 5px !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border) !important;
+  border-left-width: 3px !important;
+  background: var(--surface) !important;
   color: var(--fg-2) !important;
+  font-family: var(--mono) !important;
 }
+[data-testid="stAlert"] p { color: var(--fg-2) !important; }
+[data-testid="stAlert"] a { color: var(--info) !important; }
 [data-testid="stExpander"] {
-  border: 2px solid var(--border) !important;
-  border-radius: var(--radius-s) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 4px !important;
   background: var(--surface);
 }
-[data-testid="stExpander"] summary { font-weight: 700; color: var(--fg-1); }
-[data-testid="stExpander"] summary:hover { color: var(--duo-dd); }
+[data-testid="stExpander"] summary { font-weight: 700; color: var(--fg-1);
+                                     font-family: var(--mono); }
+[data-testid="stExpander"] summary:hover { color: var(--duo); }
 
 /* ══════════════════════════════════════════════════════════════════
-   BANDEAU D'UNITÉ — la carte verte de la maquette.
-   Le fond est posé sur le bloc horizontal, pas sur le texte : les deux
-   colonnes (titre + bouton GUIDE) forment ainsi UNE seule carte.
+   BANDEAU D'UNITÉ — la carte de tête, en vert phosphore sur noir,
+   avec une bordure qui défile comme un décodeur.
    ══════════════════════════════════════════════════════════════════ */
-/* Le vert du bandeau est un vert de pelouse ASSOMBRI (#3a8400) et non le
-   #58cc02 du parcours : sur ce dernier, du blanc ne tient que 2,1:1 et du
-   texte sombre 4,3:1 — aucun des deux n'atteint AA. Sur #3a8400, le blanc
-   tient 4,7:1, ce qui autorise un titre ET un sous-titre blancs. Le vert
-   vif reste présent juste en dessous, dans les nœuds du chemin. */
 [class*="st-key-duo_unit_"] {
-  background: #3a8400;
-  border: 2px solid #2f7000;
-  border-top: 3px solid #58cc02;
-  border-radius: 18px;
+  position: relative; overflow: hidden;
+  background: linear-gradient(180deg, #08160f 0%, #050d09 100%);
+  border: 1px solid var(--duo-d);
+  border-radius: 8px;
   padding: 14px 20px;
-  box-shadow: 0 4px 0 #2f7000;
+  box-shadow: inset 0 0 22px rgba(57,255,136,0.10),
+              0 0 22px rgba(57,255,136,0.14);
 }
+[class*="st-key-duo_unit_"]::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg, rgba(57,255,136,0.07) 0 2px, transparent 2px 12px);
+  animation: barflow 12s linear infinite;
+}
+@keyframes barflow { to { background-position: 240px 0; } }
 [class*="st-key-duo_unit_"] [data-testid="stHorizontalBlock"] {
   align-items: center; gap: 12px;
 }
-.unit { background: transparent; border: 0; padding: 0; border-radius: 0; }
-.unit-k { display: inline-block; font-size: 0.68rem; font-weight: 800;
-          letter-spacing: 0.14em; text-transform: uppercase; color: var(--duo-ink);
-          background: #eaffd6; border-radius: 999px; padding: 2px 10px;
-          margin-bottom: 6px; }
-.unit-t { color: #ffffff; font-weight: 800; font-size: 1.22rem;
-          letter-spacing: 0.01em; }
-.unit-s { color: #ffffff; font-size: 0.88rem; font-weight: 600;
-          margin-top: 3px; }
-.unit-s strong, .unit-s code { color: #ffffff; }
+.unit { background: transparent; border: 0; padding: 0; border-radius: 0;
+        position: relative; z-index: 1; }
+.unit-k { display: inline-block; font-size: 0.66rem; font-weight: 700;
+          letter-spacing: 0.16em; text-transform: uppercase;
+          color: var(--duo-ink); background: var(--duo);
+          border-radius: 2px; padding: 2px 9px; margin-bottom: 6px; }
+.unit-t { color: var(--fg-1); font-weight: 700; font-size: 1.18rem;
+          letter-spacing: 0.01em; text-shadow: 0 0 12px rgba(57,255,136,0.45); }
+.unit-s { color: var(--fg-2); font-size: 0.86rem; margin-top: 3px; }
+.unit-s strong, .unit-s code { color: var(--duo); }
 .unit-p { display: flex; flex-wrap: wrap; align-items: center; gap: 9px;
           margin-top: var(--sp-2); }
-.unit-pl { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
-           color: #ffffff; font-weight: 800; }
+.unit-pl { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase;
+           color: var(--fg-4); font-weight: 700; }
 .unit-dots { display: inline-flex; gap: 5px; }
-.u-dot { width: 10px; height: 10px; border-radius: 999px;
-         border: 1.5px solid #ffffff; background: transparent; }
-.u-dot.u-on { background: #ffffff; border-color: #ffffff; }
-.unit-pn { font-size: 0.76rem; color: #ffffff; font-weight: 700; }
+.u-dot { width: 10px; height: 10px; border-radius: 1px;
+         border: 1px solid var(--border-ui); background: transparent; }
+.u-dot.u-on { background: var(--duo); border-color: var(--duo);
+              box-shadow: 0 0 8px rgba(57,255,136,0.7); }
+.unit-pn { font-size: 0.74rem; color: var(--fg-3); }
 
-/* le bouton GUIDE, à droite du bandeau : pastille blanche */
+/* le bouton GUIDE, à droite du bandeau */
 [class*="st-key-duo_unit_"] [data-testid="stPopover"] button {
-  background: #ffffff !important;
-  border: 2px solid #ffffff !important;
-  border-bottom-width: 4px !important;
-  border-bottom-color: #cfe8b8 !important;
-  color: var(--duo-ink) !important;
-  border-radius: var(--radius-s) !important;
-  font-weight: 800 !important;
+  background: transparent !important;
+  border: 1px solid var(--duo) !important;
+  color: var(--duo) !important;
+  border-radius: 3px !important;
+  font-weight: 700 !important;
   width: 100%;
+  box-shadow: 0 0 10px rgba(57,255,136,0.25) !important;
 }
 [class*="st-key-duo_unit_"] [data-testid="stPopover"] button:hover {
-  background: #f6ffef !important;
+  background: rgba(57,255,136,0.14) !important;
+  box-shadow: 0 0 18px rgba(57,255,136,0.55) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   LE PARCOURS — cœur de la maquette.
-   Sept nœuds qui descendent en zigzag, reliés par un trait pointillé,
-   avec deux jalons dorés et une mascotte qui commente l'état réel.
+   LE PARCOURS — sept nœuds de terminal qui descendent en zigzag,
+   reliés par un trait pointillé, deux haltes dorées.
    ══════════════════════════════════════════════════════════════════ */
-/* la colonne qui contient le chemin reçoit un cadre de carte */
 [data-testid="stColumn"]:has(.pc-mark) {
   background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   padding: var(--sp-3) var(--sp-2) var(--sp-4);
+  box-shadow: inset 0 0 30px rgba(57,255,136,0.04);
 }
 .pc-mark { display: none; }
 /* Les blocs de Streamlit sont espacés d'un rem : dans un chemin de sept
@@ -1613,263 +1703,276 @@ div[role="radiogroup"] input:checked + div {
 }
 [class*="st-key-duo_row_"] [data-testid="stVerticalBlock"] { gap: 0 !important; }
 
-/* le nœud : un disque épais, ombré vers le bas, qui s'enfonce au clic */
+/* le nœud : un carré à coins coupés, cerclé de phosphore */
 [class*="st-key-pcb_"] { display: flex; justify-content: center; }
 [class*="st-key-pcb_"] button {
-  width: 68px !important; height: 68px !important; min-height: 68px !important;
-  min-width: 68px !important; flex: 0 0 auto !important;
-  border-radius: 50% !important;
-  padding: 0 !important; font-size: 1.7rem !important; font-weight: 800 !important;
+  width: 62px !important; height: 62px !important; min-height: 62px !important;
+  min-width: 62px !important; flex: 0 0 auto !important;
+  border-radius: 6px !important;
+  padding: 0 !important; font-size: 1.5rem !important; font-weight: 700 !important;
   line-height: 1 !important;
+  font-family: var(--mono) !important;
   display: flex; align-items: center; justify-content: center;
-  border: 0 !important;
-  background: var(--duo-d) !important;
-  color: #ffffff !important;
-  box-shadow: 0 6px 0 var(--duo-dd) !important;
-  transition: transform 80ms ease, box-shadow 80ms ease;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px),
+                     calc(100% - 8px) 100%, 0 100%, 0 8px);
+  transition: transform 90ms ease, box-shadow 140ms ease, background 140ms ease;
 }
-[class*="st-key-pcb_"] button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 7px 0 var(--duo-dd) !important;
+/* état terminé : phosphore plein, encre noire */
+[class*="st-key-pcb_done"] button {
   background: var(--duo) !important;
+  color: var(--duo-ink) !important;
+  border: 0 !important;
+  box-shadow: 0 0 16px rgba(57,255,136,0.55) !important;
 }
-[class*="st-key-pcb_"] button:active {
-  transform: translateY(4px);
-  box-shadow: 0 2px 0 var(--duo-dd) !important;
+[class*="st-key-pcb_done"] button:hover {
+  background: #6dffab !important; color: var(--duo-ink) !important;
+  box-shadow: 0 0 26px rgba(57,255,136,0.85) !important;
 }
-/* état terminé : vert franc, coche blanche */
-[class*="st-key-pcb_done"] button { background: var(--duo-d) !important; }
-/* état courant : anneau bleu + halo, et une petite respiration */
+/* état courant : anneau qui respire, et le halo qui pulse */
 [class*="st-key-pcb_cur"] button {
-  background: var(--duo-btn) !important;
-  box-shadow: 0 6px 0 #2c6a00, 0 0 0 6px #cfe8ff !important;
-  animation: duo-bob 1.8s ease-in-out infinite;
+  background: #0b2418 !important;
+  color: var(--duo) !important;
+  border: 2px solid var(--duo) !important;
+  animation: pulse 1.7s ease-in-out infinite;
 }
-@keyframes duo-bob {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-3px); }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(57,255,136,0.45),
+                         inset 0 0 10px rgba(57,255,136,0.18); }
+  50%      { box-shadow: 0 0 26px rgba(57,255,136,0.95),
+                         inset 0 0 18px rgba(57,255,136,0.38); }
 }
-/* état ouvert mais pas commencé : contour clair sur fond blanc */
+[class*="st-key-pcb_cur"] button:hover {
+  background: #122f20 !important; color: #6dffab !important;
+}
+/* état ouvert, pas encore atteint */
 [class*="st-key-pcb_open"] button {
-  background: #ffffff !important;
-  color: var(--duo-dd) !important;
-  border: 3px solid var(--duo) !important;
-  box-shadow: 0 6px 0 #d9f2c4 !important;
+  background: #07100c !important;
+  color: var(--fg-3) !important;
+  border: 1px solid var(--border-ui) !important;
 }
 [class*="st-key-pcb_open"] button:hover {
-  background: var(--duo-soft) !important; color: var(--duo-dd) !important;
+  background: #0b2418 !important; color: var(--duo) !important;
+  border-color: var(--duo) !important;
+  box-shadow: 0 0 14px rgba(57,255,136,0.35) !important;
 }
-/* état verrouillé : gris, pointillés, cadenas */
+/* état verrouillé : gris, pointillés, cadenas — « accès refusé » */
 [class*="st-key-pcb_lock"] button {
-  background: #f1f1f1 !important;
-  color: #6f6f6f !important;
-  border: 3px dashed #cfcfcf !important;
-  box-shadow: 0 6px 0 #e3e3e3 !important;
-  font-size: 1.15rem !important;
+  background: #080b0a !important;
+  color: #5c7064 !important;
+  border: 1px dashed #2a3a32 !important;
+  font-size: 1.05rem !important;
 }
 [class*="st-key-pcb_lock"] button:hover {
-  background: #eaeaea !important; color: #4b4b4b !important;
+  background: #0d1210 !important; color: #8fa89a !important;
+  border-color: #3d4f46 !important;
 }
 [class*="st-key-pcb_"] button:focus-visible {
-  outline: 3px solid var(--focus) !important; outline-offset: 5px !important;
+  outline: 2px solid var(--focus) !important; outline-offset: 4px !important;
 }
 
-/* Nom + statut sous le nœud. Le libellé est plus large que la cellule
-   qui le porte : il déborde
-   symétriquement, ce qui le centre sous le nœud quelle que soit la
-   position de celui-ci dans le zigzag. */
+/* nom + statut sous le nœud. Le libellé est plus large que la cellule
+   qui le porte : il déborde symétriquement, ce qui le centre sous le
+   nœud quelle que soit la position de celui-ci dans le zigzag. */
 .duo-lab { --w: 180px; width: var(--w); text-align: center; margin-top: 8px;
            margin-left: calc(50% - var(--w) / 2); }
-.duo-lab b { display: block; color: var(--fg-1); font-size: 0.83rem;
-             font-weight: 800; line-height: 1.25; }
-.duo-lab .duo-k { display: block; color: var(--fg-4); font-size: 0.7rem;
-                  font-weight: 700; letter-spacing: 0.08em;
+.duo-lab b { display: block; color: var(--fg-1); font-size: 0.8rem;
+             font-weight: 700; line-height: 1.25; }
+.duo-lab .duo-k { display: block; color: var(--fg-4); font-size: 0.66rem;
+                  font-weight: 700; letter-spacing: 0.1em;
                   text-transform: uppercase; margin-bottom: 1px; }
-.duo-sub { display: block; color: var(--fg-3); font-size: 0.74rem;
+.duo-sub { display: block; color: var(--fg-3); font-size: 0.72rem;
            line-height: 1.3; margin-top: 2px; }
 .duo-now-pill {
   display: block; margin: 6px auto 0; width: fit-content;
-  background: #ffffff; border: 2px solid var(--duo);
-  color: var(--duo-dd); font-size: 0.66rem; font-weight: 800;
-  letter-spacing: 0.09em; text-transform: uppercase;
-  border-radius: 999px; padding: 2px 10px;
-  box-shadow: 0 2px 0 #d9f2c4;
+  background: var(--duo); border: 1px solid var(--duo);
+  color: var(--duo-ink); font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border-radius: 2px; padding: 2px 8px;
+  box-shadow: 0 0 10px rgba(57,255,136,0.5);
 }
 .duo-lock-pill {
   display: block; margin: 6px auto 0; width: fit-content;
-  background: var(--surface-2); border: 2px solid var(--border);
-  color: #6f6f6f; font-size: 0.66rem; font-weight: 800;
-  letter-spacing: 0.09em; text-transform: uppercase;
-  border-radius: 999px; padding: 2px 10px;
+  background: #080b0a; border: 1px dashed #2a3a32;
+  color: #8fa89a; font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border-radius: 2px; padding: 2px 8px;
 }
 
 /* le trait pointillé entre deux nœuds : un SVG qui s'étire avec la
    carte, dessiné dans la couleur de l'état des deux nœuds qu'il relie */
 .duo-link { line-height: 0; }
 .duo-link svg { display: block; width: 100%; height: 30px; }
-.duo-link .ln { fill: none; stroke: var(--border-ui); stroke-width: 2.5;
-                stroke-dasharray: 1 9; stroke-linecap: round; }
+.duo-link .ln { fill: none; stroke: #2a3a32; stroke-width: 1.6;
+                stroke-dasharray: 2 8; stroke-linecap: butt; }
 .duo-link.done .ln { stroke: var(--duo-d); }
-.duo-link.cur  .ln { stroke: var(--duo-btn); }
+.duo-link.cur  .ln { stroke: var(--duo); animation: dashrun 3s linear infinite; }
+@keyframes dashrun { to { stroke-dashoffset: -40; } }
 
-/* jalon : le coffre de la maquette, qui s'ouvre sur un vrai événement */
+/* jalon : la caisse de données, qui s'ouvre sur un vrai événement */
 .duo-jalon { display: flex; flex-direction: column; align-items: center;
              gap: 4px; margin: 4px auto 6px; }
-.duo-jalon svg { width: 70px; height: 70px; }
-.duo-jalon .jl { font-size: 0.71rem; font-weight: 800; letter-spacing: 0.06em;
+.duo-jalon svg { width: 66px; height: 66px; }
+.duo-jalon .jl { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em;
                  text-transform: uppercase; color: var(--fg-4); }
-.duo-jalon.on .jl { color: #8a5b00; }   /* or sombre : 5,9:1 sur blanc */
+.duo-jalon.on .jl { color: var(--gold); }
 
-/* mascotte + bulle : ce que la mascotte dit est l'état réel du lot */
-.duo-mascotte { display: flex; align-items: flex-start; gap: 10px;
-                margin: 0 0 var(--sp-2); }
-.duo-mascotte svg { flex: 0 0 auto; }
-.duo-bubble {
-  position: relative; flex: 1 1 auto;
-  background: var(--surface); border: 2px solid var(--border);
-  border-radius: 16px; padding: 9px 13px;
-  color: var(--fg-2); font-size: 0.83rem; line-height: 1.45;
-  box-shadow: 0 3px 0 var(--surface-3);
+/* ligne d'état du lot — elle remplace la bulle de la mascotte et dit
+   exactement la même chose, en langage terminal */
+.duo-term {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px;
+  margin: 0 0 var(--sp-2); padding: 8px 11px;
+  background: #07100c; border: 1px solid var(--border);
+  border-left: 3px solid var(--duo); border-radius: 4px;
+  font-family: var(--mono); font-size: 0.8rem; line-height: 1.5;
+  color: var(--fg-2);
 }
-.duo-bubble::before {
-  content: ""; position: absolute; left: -9px; top: 18px;
-  width: 14px; height: 14px; background: var(--surface);
-  border-left: 2px solid var(--border); border-bottom: 2px solid var(--border);
-  transform: rotate(45deg);
-}
-.duo-bubble b { color: var(--fg-1); }
+.duo-term .p { color: var(--duo); font-weight: 700; }
+.duo-term b { color: var(--duo); }
 
-/* progression du parcours : une barre franche, avec le compte écrit */
+/* progression du parcours : sept segments, comme une jauge */
 .pc-prog { margin: var(--sp-1) 0 var(--sp-3); }
-.pc-prog-l { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
-             color: var(--fg-4); margin-bottom: 5px; font-weight: 800; }
-.pc-prog-b { height: 14px; border-radius: 999px; background: var(--surface-3);
-             border: 2px solid var(--border); overflow: hidden; }
-.pc-prog-b span { display: block; height: 100%; border-radius: 999px;
-                  background: var(--duo-d);
-                  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.12); }
+.pc-prog-l { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+             color: var(--fg-4); margin-bottom: 5px; font-weight: 700; }
+.pc-prog-b { height: 10px; border-radius: 2px; background: #0a0f0d;
+             border: 1px solid var(--border); overflow: hidden; }
+.pc-prog-b span { display: block; height: 100%;
+                  background: repeating-linear-gradient(
+                    90deg, var(--duo) 0 8px, var(--duo-d) 8px 10px);
+                  box-shadow: 0 0 12px rgba(57,255,136,0.55); }
 
 /* légende du parcours */
 .pc-legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-             margin: var(--sp-3) 0 var(--sp-1); font-size: 0.74rem;
+             margin: var(--sp-3) 0 var(--sp-1); font-size: 0.72rem;
              color: var(--fg-3); }
-.pc-legend span { border: 1.5px solid var(--border); border-radius: 999px;
-                  padding: 2px 9px; background: var(--surface); }
+.pc-legend span { border: 1px solid var(--border); border-radius: 3px;
+                  padding: 2px 8px; background: #07100c; }
 .pc-legend b { color: var(--fg-1); }
 .pc-legend-n { color: var(--fg-4); font-style: italic; border: 0 !important;
                background: none !important; padding-left: 0 !important; }
 
 /* titres du bloc parcours */
-.pc-path-h { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
-             color: var(--fg-4); font-weight: 800; margin: 0 0 4px; text-align: center; }
-.pc-path-l { font-size: 0.8rem; color: var(--fg-4); text-align: center;
+.pc-path-h { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase;
+             color: var(--duo); font-weight: 700; margin: 0 0 4px;
+             text-align: center; }
+.pc-path-l { font-size: 0.76rem; color: var(--fg-4); text-align: center;
              margin: 0 0 var(--sp-2); line-height: 1.4; }
 
 /* en-tête du panneau de droite : où l'on est, puis le titre de l'étape */
-.pc-panel-h { display: inline-block; font-size: 0.7rem; letter-spacing: 0.12em;
-              text-transform: uppercase; color: var(--duo-dd); font-weight: 800;
-              background: var(--duo-soft); border: 1.5px solid var(--duo-line);
-              border-radius: 999px; padding: 3px 12px; margin: 0 0 8px; }
-.pc-do { color: var(--fg-2); font-size: 0.97rem; line-height: 1.55;
+.pc-panel-h { display: inline-block; font-size: 0.68rem; letter-spacing: 0.14em;
+              text-transform: uppercase; color: var(--duo); font-weight: 700;
+              background: #07130d; border: 1px solid var(--duo-line);
+              border-radius: 3px; padding: 3px 10px; margin: 0 0 8px; }
+.pc-do { color: var(--fg-2); font-size: 0.92rem; line-height: 1.55;
          margin: -2px 0 var(--sp-3); max-width: 62ch; }
 
 /* clic sur un cadenas : ce que le verrou fait, et ne fait pas */
-.u-lock { background: #fdf6e8; border: 2px solid #eccf9b;
-          border-radius: var(--radius-s); padding: var(--sp-3);
-          margin-top: var(--sp-2); }
-.u-lock-h { color: var(--warn); font-weight: 800; font-size: 0.8rem;
-            letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
-.u-lock-b { color: var(--fg-2); font-size: 0.86rem; line-height: 1.55; }
-.u-lock-g { color: var(--fg-4); font-size: 0.78rem; font-style: italic; margin-top: 6px; }
+.u-lock { background: #0f0d05; border: 1px solid #5c4a00;
+          border-left: 3px solid var(--warn); border-radius: 4px;
+          padding: var(--sp-3); margin-top: var(--sp-2); }
+.u-lock-h { color: var(--warn); font-weight: 700; font-size: 0.76rem;
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+.u-lock-b { color: var(--fg-2); font-size: 0.84rem; line-height: 1.55; }
+.u-lock-g { color: var(--fg-4); font-size: 0.76rem; font-style: italic; margin-top: 6px; }
 
 /* ce qui est mémorisé entre les étapes */
-.u-mem { background: var(--surface-2); border: 2px solid var(--border);
-         border-radius: var(--radius-s); padding: var(--sp-3); margin-top: var(--sp-3); }
-.u-mem-h { color: var(--fg-4); font-size: 0.72rem; letter-spacing: 0.12em;
-           text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
-.u-mem ul { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 0.86rem; }
+.u-mem { background: var(--surface-2); border: 1px solid var(--border);
+         border-radius: 4px; padding: var(--sp-3); margin-top: var(--sp-3); }
+.u-mem-h { color: var(--fg-4); font-size: 0.68rem; letter-spacing: 0.14em;
+           text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
+.u-mem ul { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 0.84rem; }
 .u-mem li { margin-bottom: 3px; }
 
-/* ---- cartes de mesure ------------------------------------------- */
-.kpi { background: var(--surface); border: 2px solid var(--border);
-       border-radius: var(--radius); padding: var(--sp-3);
-       text-align: center; box-shadow: 0 3px 0 var(--surface-3); }
-.kpi-v { font-size: 1.75rem; font-weight: 800; color: var(--fg-1);
-         line-height: 1.15; font-variant-numeric: tabular-nums; }
-.kpi-l { font-size: 0.72rem; color: var(--fg-4); letter-spacing: 0.09em;
-         text-transform: uppercase; margin-bottom: var(--sp-1); font-weight: 800; }
-.kpi-s { font-size: 0.8rem; color: var(--fg-3); margin-top: var(--sp-1); }
+/* ---- cartes de mesure : un cadran de terminal -------------------- */
+.kpi { position: relative; background: var(--surface);
+       border: 1px solid var(--border); border-radius: 6px;
+       padding: var(--sp-3); text-align: center;
+       box-shadow: inset 0 0 18px rgba(57,255,136,0.05); }
+.kpi::after { content: ""; position: absolute; left: 10px; right: 10px; top: 0;
+              height: 1px; background: linear-gradient(90deg, transparent,
+              rgba(57,255,136,0.55), transparent); }
+.kpi-v { font-size: 1.6rem; font-weight: 700; color: var(--duo);
+         line-height: 1.15; font-variant-numeric: tabular-nums;
+         text-shadow: 0 0 12px rgba(57,255,136,0.45); }
+.kpi-l { font-size: 0.68rem; color: var(--fg-4); letter-spacing: 0.12em;
+         text-transform: uppercase; margin-bottom: var(--sp-1); font-weight: 700; }
+.kpi-s { font-size: 0.76rem; color: var(--fg-3); margin-top: var(--sp-1); }
 
 /* ---- panneaux ---------------------------------------------------- */
-.panel { background: var(--surface); border: 2px solid var(--border);
-         border-radius: var(--radius); padding: var(--sp-3);
-         color: var(--fg-2); line-height: 1.66; box-shadow: 0 3px 0 var(--surface-3); }
-.panel-accent { border-left: 5px solid var(--duo); }
-.pitch { background: var(--duo-soft); border: 2px solid var(--duo-line);
-         border-radius: var(--radius); padding: var(--sp-3) var(--sp-4);
-         color: var(--fg-2); }
+.panel { background: var(--surface); border: 1px solid var(--border);
+         border-radius: 6px; padding: var(--sp-3);
+         color: var(--fg-2); line-height: 1.66; }
+.panel-accent { border-left: 3px solid var(--duo); }
+.pitch { background: #07130d; border: 1px solid var(--duo-line);
+         border-left: 3px solid var(--duo); border-radius: 6px;
+         padding: var(--sp-3) var(--sp-4); color: var(--fg-2); }
 
 /* ---- encadrés ---------------------------------------------------- */
-.note { background: var(--surface-2); border: 2px solid var(--border);
-        border-left: 5px solid var(--border-ui); border-radius: var(--radius-s);
-        padding: var(--sp-2) var(--sp-3); font-size: 0.9rem; color: var(--fg-3);
+.note { background: var(--surface); border: 1px solid var(--border);
+        border-left: 3px solid var(--border-ui); border-radius: 4px;
+        padding: var(--sp-2) var(--sp-3); font-size: 0.86rem; color: var(--fg-2);
         line-height: 1.65; }
-.note-warn { border-left-color: var(--gold-d); background: #fffdf3; }
+.note-warn { border-left-color: var(--warn); background: #0f0d05; }
 
 /* ---- pied de page ------------------------------------------------ */
-.foot { border-top: 2px solid var(--border); margin-top: var(--sp-4);
-        padding-top: var(--sp-2); font-size: 0.8rem; color: var(--fg-4);
+.foot { border-top: 1px solid var(--border); margin-top: var(--sp-4);
+        padding-top: var(--sp-2); font-size: 0.76rem; color: var(--fg-4);
         line-height: 2; }
-.foot code { color: var(--fg-2); background: var(--surface-2);
-             padding: 2px 6px; border-radius: 6px; font-size: 0.95em; }
+.foot code { color: var(--duo); background: var(--surface-2);
+             border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px;
+             font-size: 0.95em; }
 
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.mono { font-family: var(--mono); }
 
-/* ---- tableaux ---------------------------------------------------- */
-div[data-testid="stDataFrame"] { border: 2px solid var(--border);
-                                 border-radius: var(--radius-s); }
+/* ---- tableaux : une grille de terminal --------------------------- */
+div[data-testid="stDataFrame"] { border: 1px solid var(--border);
+                                 border-radius: 4px; }
 .tbl-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.tbl { width: 100%; border-collapse: separate; border-spacing: 0;
-       margin: var(--sp-2) 0 var(--sp-3); font-size: 0.92rem;
-       border: 2px solid var(--border); border-radius: var(--radius-s);
-       overflow: hidden; }
-.tbl caption { text-align: left; color: var(--fg-3); font-size: 0.88rem;
+.tbl { width: 100%; border-collapse: collapse;
+       margin: var(--sp-2) 0 var(--sp-3); font-size: 0.86rem;
+       border: 1px solid var(--border); }
+.tbl caption { text-align: left; color: var(--fg-3); font-size: 0.82rem;
                padding: 0 0 var(--sp-2); }
-.tbl th, .tbl td { padding: 9px 12px; border-bottom: 1px solid var(--border);
+.tbl th, .tbl td { padding: 8px 11px; border-bottom: 1px solid var(--border);
                    text-align: right; vertical-align: top; }
 .tbl th[scope="row"], .tbl th:first-child, .tbl td:first-child { text-align: left; }
-.tbl thead th { color: var(--fg-1); font-weight: 800; background: var(--surface-2);
-                border-bottom: 2px solid var(--border); }
+.tbl thead th { color: var(--duo); font-weight: 700; background: #07100c;
+                border-bottom: 1px solid var(--duo-line);
+                letter-spacing: 0.06em; text-transform: uppercase;
+                font-size: 0.74rem; }
 .tbl th[scope="row"] { color: var(--fg-1); font-weight: 700; }
 .tbl td { color: var(--fg-2); font-variant-numeric: tabular-nums; }
-.tbl tbody tr:hover { background: #fbfdf7; }
+.tbl tbody tr:hover { background: #0b2418; }
 .tbl tbody tr:last-child th, .tbl tbody tr:last-child td { border-bottom: 0; }
 .tbl .na { color: var(--fg-4); font-style: italic; }
 
 /* ---- titre de section d'onglet ---------------------------------- */
-.tab-h { display: inline-block; font-size: 0.7rem !important;
-         letter-spacing: 0.14em; text-transform: uppercase;
-         color: var(--duo-dd) !important; font-weight: 800;
-         margin: 0 0 var(--sp-2) !important; padding: 3px 11px;
-         background: var(--duo-soft); border: 1.5px solid var(--duo-line);
-         border-radius: 999px; }
+.tab-h { display: inline-block; font-size: 0.68rem !important;
+         letter-spacing: 0.16em; text-transform: uppercase;
+         color: var(--duo) !important; font-weight: 700;
+         margin: 0 0 var(--sp-2) !important; padding: 3px 10px;
+         background: #07130d; border: 1px solid var(--duo-line);
+         border-radius: 3px; }
+.tab-h::before { content: "./"; opacity: .7; }
 
 /* ══════════════════════════════════════════════════════════════════
    BARRE LATÉRALE — les réglages, séparés des résultats
    ══════════════════════════════════════════════════════════════════ */
 [data-testid="stSidebar"] {
-  background: var(--surface-2) !important;
-  border-right: 2px solid var(--border) !important;
+  background: #060a09 !important;
+  border-right: 1px solid var(--border) !important;
 }
-[data-testid="stSidebar"] h2 { font-size: 1.05rem !important;
-                               letter-spacing: 0.01em; margin-bottom: 4px;
-                               color: var(--fg-1) !important; }
+[data-testid="stSidebar"] h2 { font-size: 0.95rem !important;
+                               letter-spacing: 0.06em; margin-bottom: 4px;
+                               color: var(--duo) !important;
+                               text-transform: uppercase; }
+[data-testid="stSidebar"] h2::before { content: "> "; opacity: .8; }
 [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button {
-  background: var(--duo-btn) !important; border-color: var(--duo-dd) !important;
-  color: #ffffff !important;
+  background: var(--duo) !important; border-color: var(--duo) !important;
+  color: var(--duo-ink) !important;
+  box-shadow: 0 0 16px rgba(57,255,136,0.4) !important;
 }
 [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button:hover {
-  background: #347800 !important; color: #ffffff !important;
+  background: #6dffab !important; color: var(--duo-ink) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1888,30 +1991,35 @@ div[data-testid="stDataFrame"] { border: 2px solid var(--border);
   [class*="st-key-duo_row_"] [data-testid="column"] {
     flex: 1 1 0 !important; width: auto !important; min-width: 0 !important;
   }
-  [class*="st-key-pcb_"] button { width: 58px !important; height: 58px !important;
-                                  min-height: 58px !important; min-width: 58px !important;
-                                  font-size: 1.45rem !important; }
+  [class*="st-key-pcb_"] button { width: 52px !important; height: 52px !important;
+                                  min-height: 52px !important; min-width: 52px !important;
+                                  font-size: 1.25rem !important; }
   .duo-lab { --w: 132px; }
-  .duo-lab b { font-size: 0.76rem; }
-  .duo-lab .duo-sub { font-size: 0.68rem; }
-  .tbl { font-size: 0.85rem; }
-  .tbl th, .tbl td { padding: 6px 9px; }
-  h1, .proj-title { font-size: 1.55rem !important; line-height: 1.2; }
+  .duo-lab b { font-size: 0.72rem; }
+  .duo-lab .duo-sub { font-size: 0.66rem; }
+  .tbl { font-size: 0.8rem; }
+  .tbl th, .tbl td { padding: 6px 8px; }
+  h1, .proj-title { font-size: 1.5rem !important; line-height: 1.2; }
   .badge { display: inline-block; margin-bottom: 4px; }
-  .unit-t { font-size: 1.08rem; }
+  .unit-t { font-size: 1.05rem; }
   [class*="st-key-duo_unit_"] { padding: 12px 14px; }
+  .typed { animation: none; width: auto; border-right: 0; }
 }
 
 /* ---- impression : un écran du mémoire doit rester lisible sur papier */
 @media print {
   .stApp { background: #ffffff !important; color: #111111 !important; }
+  .stApp::before, .stApp::after { display: none !important; }
   [data-testid="stSidebar"], [data-testid="stToolbar"], .badge,
-  .duo-mascotte, [class*="st-key-pcb_"] { display: none !important; }
+  .duo-term, [class*="st-key-pcb_"] { display: none !important; }
   .tbl th, .tbl td { border-color: #999999; color: #111111 !important; }
-  .tbl thead th { background: #eeeeee !important; }
+  .tbl thead th { background: #eeeeee !important; color: #111111 !important; }
   .note, .pitch, .panel, .kpi, .unit { border: 1px solid #999999 !important;
                                       background: #ffffff !important;
                                       box-shadow: none !important; }
+  .kpi-v, .unit-t, h1, h2, h3 { color: #111111 !important;
+                                text-shadow: none !important; }
+  .typed { animation: none; width: auto; border-right: 0; }
   a[href]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
 }
 
@@ -2326,11 +2434,11 @@ def per_class_png(rows) -> bytes:
     """
     Rendu PNG du rappel par classe, pour le dossier de candidature.
 
-    Palette accessible : le texte utilise #3c3c3c sur #ffffff (11,6:1) et les
+    Palette accessible : le texte utilise #d9ffe8 sur #05080a (17,6:1) et les
     barres sont dans une teinte unique — la valeur est aussi imprimée à côté
     de chaque barre, de sorte que la figure reste lisible sans distinguer
-    les couleurs. Le vert est celui du parcours, pour que la figure et
-    l'écran parlent la même langue visuelle.
+    les couleurs. Le vert phosphore est celui du parcours, pour que la
+    figure et l'écran parlent la même langue visuelle.
     """
     import io
 
@@ -2338,7 +2446,7 @@ def per_class_png(rows) -> bytes:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    SURF, FG1, FG2, FG3, BAR = "#ffffff", "#3c3c3c", "#4b4b4b", "#5f5f5f", "#58cc02"
+    SURF, FG1, FG2, FG3, BAR = "#05080a", "#d9ffe8", "#b6d9c6", "#9dc0ab", "#39ff88"
     fig, ax = plt.subplots(figsize=(6.4, 3.2), dpi=150)
     fig.patch.set_facecolor(SURF)
     ax.set_facecolor(SURF)
@@ -2351,7 +2459,7 @@ def per_class_png(rows) -> bytes:
     ax.set_xlim(0, 105)
     ax.tick_params(colors=FG3, labelsize=8)
     for sp in ax.spines.values():
-        sp.set_color("#e5e5e5")
+        sp.set_color("#1d3128")
     ax.set_title("Zero-Day recall per attack class", color=FG1, fontsize=10)
     fig.tight_layout()
     buf = io.BytesIO()
@@ -2419,6 +2527,19 @@ def _md_html(txt: str) -> str:
     out = _md_inline(txt)
     out = re.sub(r"\n{2,}", "<br><br>", out)
     return out.replace("\n", "<br>")
+
+
+def typed_html(txt: str) -> str:
+    """Texte écrit lettre à lettre, à la manière d'un terminal.
+
+    L'animation est en CSS pur : la largeur part de 0 et s'arrête à
+    `n` caractères (UI `ch`, valable parce que la police est monospace).
+    Aucun script n'est injecté — Streamlit ne les exécuterait pas.
+    `prefers-reduced-motion` et l'impression affichent le texte d'un coup.
+    """
+    s = _html.escape(str(txt))
+    return (f'<span class="typed" style="--n:{max(1, len(str(txt)))}">{s}</span>'
+            f'<span class="cur-blink" aria-hidden="true">▌</span>')
 
 
 def html_table(df, caption: str = "", na: str = "", first_col_header: bool = True,
@@ -2613,8 +2734,9 @@ st.markdown(
     '<a href="#contenu-principal" class="sr-only" '
     'style="position:absolute;left:-9999px;" '
     'onfocus="this.style.left=\'8px\';this.style.top=\'8px\';'
-    'this.style.padding=\'10px 16px\';this.style.background=\'#ffffff\';'
-    'this.style.border=\'2px solid #0b63b8\';this.style.borderRadius=\'10px\';'
+    'this.style.padding=\'10px 16px\';this.style.background=\'#05080a\';'
+    'this.style.color=\'#39ff88\';this.style.border=\'2px solid #39ff88\';'
+    'this.style.borderRadius=\'4px\';'
     'this.style.zIndex=9999;this.style.width=\'auto\';this.style.height=\'auto\';'
     'this.style.clip=\'auto\';" '
     'onblur="this.style.left=\'-9999px\';">'
@@ -2625,6 +2747,13 @@ st.markdown(
     f'<div class="eyebrow">{t("eyebrow")}</div>'
     f'<h1 class="proj-title" style="margin:0;">{t("title")}</h1>'
     f'<p class="proj-sub">{t("subtitle")}</p>'
+    # Barre d'invite : la page se présente comme un terminal, et donne
+    # d'emblée son état réel — « ONLINE » n'est pas un décor, c'est
+    # l'application qui tourne sans réseau.
+    f'<div class="termbar">'
+    f'<span class="u">root@psm-ht</span><span class="p">:~$</span>'
+    f'<span class="cmd">{typed_html("psm-ht --detect --zero-day --explain")}</span>'
+    f'<span class="ok">{t("term_online")}</span></div>'
     f'<p style="margin:0;">'
     # Chaque badge associe un symbole et un mot : l'information ne
     # repose jamais sur la seule couleur (critère WCAG 1.4.1).
@@ -2797,79 +2926,47 @@ def relancer_analyse() -> bool:
     return True
 
 
-# ── Brique visuelle : mascotte, coffre, trait du chemin ───────────────────
+# ── Brique visuelle : caisse de jalon, trait du chemin ────────────────────
 # Ces trois dessins sont des SVG en ligne, pas des images : ils suivent la
 # palette du thème, restent nets à toute taille et ne coûtent aucun fichier
 # à copier à côté de app.py. Les couleurs y sont écrites en clair — un SVG
 # inline n'hérite pas des variables CSS posées dans un autre bloc.
 
-def mascotte_svg(taille: int = 84, alt: str = "") -> str:
-    """La chouette du parcours : un repère amical, pas une décoration muette.
-
-    `alt` est le texte lu par un lecteur d'écran. Vide, le dessin est
-    purement décoratif (`aria-hidden`) — c'est le cas quand la bulle juste
-    à côté dit déjà la même chose.
-    """
-    _a = (f'role="img" aria-label="{_html.escape(alt)}"' if alt
-          else 'aria-hidden="true" focusable="false"')
-    return (
-        f'<svg width="{taille}" height="{taille}" viewBox="0 0 100 100" {_a}>'
-        '<ellipse cx="50" cy="94" rx="25" ry="4.5" fill="#00000012"/>'
-        '<path d="M30 27 L26 8 L45 18 Z" fill="#46a302"/>'
-        '<path d="M70 27 L74 8 L55 18 Z" fill="#46a302"/>'
-        '<ellipse cx="21" cy="53" rx="8" ry="16" fill="#46a302" '
-        'transform="rotate(14 21 53)"/>'
-        '<ellipse cx="79" cy="53" rx="8" ry="16" fill="#46a302" '
-        'transform="rotate(-14 79 53)"/>'
-        '<path d="M50 12 C33 12 24 24 24 40 C24 62 34 82 50 82 '
-        'C66 82 76 62 76 40 C76 24 67 12 50 12 Z" fill="#58cc02"/>'
-        '<ellipse cx="50" cy="57" rx="18" ry="18" fill="#d7ffb8"/>'
-        '<circle cx="39" cy="36" r="12.5" fill="#ffffff" stroke="#46a302" '
-        'stroke-width="2.5"/>'
-        '<circle cx="61" cy="36" r="12.5" fill="#ffffff" stroke="#46a302" '
-        'stroke-width="2.5"/>'
-        '<circle cx="40.5" cy="37" r="5.2" fill="#2f2f2f"/>'
-        '<circle cx="59.5" cy="37" r="5.2" fill="#2f2f2f"/>'
-        '<circle cx="42.4" cy="34.8" r="1.9" fill="#ffffff"/>'
-        '<circle cx="61.4" cy="34.8" r="1.9" fill="#ffffff"/>'
-        '<path d="M50 43 L57.5 49 L50 55 L42.5 49 Z" fill="#ffc800"/>'
-        '<path d="M50 53 L59 56 L59 62 C59 67 54.5 70 50 72 '
-        'C45.5 70 41 67 41 62 L41 56 Z" fill="#ffffff" stroke="#46a302" '
-        'stroke-width="2.2"/>'
-        '<path d="M45.5 60.5 L49 64 L55 57.5" fill="none" stroke="#2c8000" '
-        'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'
-        '<path d="M37 82 L32 90 L42 88 Z" fill="#ffa000"/>'
-        '<path d="M63 82 L68 90 L58 88 Z" fill="#ffa000"/>'
-        '</svg>'
-    )
-
-
 def coffre_svg(ouvert: bool) -> str:
-    """Le jalon doré du chemin : un coffre qui s'ouvre sur un vrai événement.
+    """Le jalon du chemin : une caisse de données qui s'ouvre sur un fait.
 
-    Il ne récompense rien : il marque une halte que les données ont
-    réellement franchie. Fermé, il est gris et dit « pas encore ».
+    Elle ne récompense rien : elle marque une halte que les données ont
+    réellement franchie. Fermée, elle est éteinte (gris, LED noires) et dit
+    « pas encore ». Ouverte, les voyants passent au vert et le couvercle
+    s'entrouvre. Dessin purement décoratif : aria-hidden.
     """
-    or_, or_d, or_f, or_i = ("#ffc800", "#e5a500", "#b88200", "#8a5b00")
-    if not ouvert:
-        or_, or_d, or_f, or_i = ("#e2e2e2", "#d0d0d0", "#a9a9a9", "#6f6f6f")
+    # métal sombre, voyants verts quand le jalon est atteint
+    metal, edge = ("#14201b", "#2f6b4f") if ouvert else ("#0e1412", "#2a3a32")
+    led, glow = ("#39ff88", "rgba(57,255,136,0.55)") if ouvert else ("#1f2a25", "none")
+    led2 = "#5fd7ff" if ouvert else "#1f2a25"
     return (
         '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">'
-        '<ellipse cx="50" cy="88" rx="28" ry="5" fill="#00000012"/>'
-        f'<rect x="22" y="48" width="56" height="35" rx="8" fill="{or_d}" '
-        f'stroke="{or_f}" stroke-width="3"/>'
-        f'<path d="M22 50 v-8 c0-8 6-13 14-13 h28 c8 0 14 5 14 13 v8 z" '
-        f'fill="{or_}" stroke="{or_f}" stroke-width="3"/>'
-        f'<rect x="20" y="45" width="60" height="8" rx="4" fill="{or_f}"/>'
-        f'<rect x="43" y="56" width="14" height="17" rx="3" fill="#fff8dc" '
-        f'stroke="{or_f}" stroke-width="2.5"/>'
-        f'<circle cx="50" cy="62" r="2.6" fill="{or_i}"/>'
-        f'<rect x="48.8" y="62" width="2.4" height="5.5" rx="1.2" fill="{or_i}"/>'
-        + ('' if ouvert else
-           f'<path d="M50 34 v-6 a8 8 0 0 1 16 0 v6" fill="none" '
-           f'stroke="{or_f}" stroke-width="4" stroke-linecap="round"/>')
-        + (f'<path d="M14 30 l4 4 M20 22 l1 6 M8 44 l6 1" stroke="{or_}" '
-           f'stroke-width="3" stroke-linecap="round"/>' if ouvert else '')
+        f'<rect x="20" y="46" width="60" height="38" rx="4" fill="{metal}" '
+        f'stroke="{edge}" stroke-width="2.5"/>'
+        f'<rect x="20" y="56" width="60" height="3" fill="{edge}" opacity="0.8"/>'
+        f'<rect x="20" y="70" width="60" height="2" fill="{edge}" opacity="0.5"/>'
+        # couvercle : entrouvert quand le jalon est atteint
+        f'<g transform="translate(0,{0 if ouvert else 3})">'
+        f'<rect x="20" y="40" width="60" height="9" rx="3" fill="{edge}"/>'
+        f'</g>'
+        # serrure centrale
+        f'<rect x="44" y="55" width="12" height="12" rx="2" fill="#07100c" '
+        f'stroke="{edge}" stroke-width="2"/>'
+        f'<circle cx="50" cy="60" r="2.2" fill="{led}"/>'
+        f'<rect x="49" y="60" width="2" height="4.5" rx="1" fill="{led}"/>'
+        # voyants de coin
+        f'<circle cx="27" cy="76" r="2.4" fill="{led}" style="filter:drop-shadow(0 0 4px {glow})"/>'
+        f'<circle cx="73" cy="76" r="2.4" fill="{led2}"/>'
+        + (f'<path d="M50 18 v8 M42 22 l16 0" stroke="{led}" stroke-width="2.5" '
+           f'stroke-linecap="round" style="filter:drop-shadow(0 0 5px {glow})"/>'
+           if ouvert else
+           f'<path d="M50 24 v-6 a7 7 0 0 1 14 0 v6" fill="none" stroke="{edge}" '
+           f'stroke-width="3" stroke-linecap="round"/>')
         + '</svg>'
     )
 
@@ -2925,7 +3022,7 @@ def entete_unite(n: int, prog: bool = False):
         with _c_txt:
             st.markdown(
                 f'<div class="unit" lang="{LANG}">{_k_html}'
-                f'<div class="unit-t">{_html.escape(_t2)}</div>'
+                f'<div class="unit-t">{typed_html(_t2)}</div>'
                 f'<div class="unit-s">{_md_html(_sous)}</div>{_prog_html}</div>',
                 unsafe_allow_html=True)
         with _c_btn:
@@ -2972,7 +3069,7 @@ def _duo_statut(i: int, etat: str) -> str:
 
 
 def _duo_message() -> str:
-    """Ce que dit la mascotte : l'état du lot, jamais un encouragement creux."""
+    """Ce que dit la ligne d'état : l'état du lot, jamais un encouragement creux."""
     _sc = st.session_state.get("last_scores")
     if _sc is None:
         return t("owl_hello")
@@ -2989,17 +3086,20 @@ def parcours() -> int:
     blanche.
 
     La forme suit la maquette : nœuds ronds qui s'enfoncent au clic, trait
-    pointillé entre eux, deux haltes dorées, une mascotte qui commente. La
-    règle de fond ne bouge pas : l'état est écrit sous chaque nœud, la
-    couleur ne fait que renforcer.
+    pointillé entre eux, deux haltes en caisse de données, une ligne d'état
+    qui dit l'état réel du lot. La règle de fond ne bouge pas : l'état est
+    écrit sous chaque nœud, la couleur ne fait que renforcer.
     """
     courante = int(st.session_state.get("pc_step", 1))
 
-    # ── la mascotte : sa bulle dit l'état réel du lot ─────────────────────
+    # ── ligne d'état : elle dit l'état réel du lot, en une ligne de terminal.
+    # Elle remplace la bulle de la mascotte (supprimée) : la phrase est la
+    # même, seule la voix change — un prompt, pas un personnage.
     st.markdown(
-        '<div class="duo-mascotte">' + mascotte_svg(84) +
-        f'<div class="duo-bubble" lang="{LANG}">{_md_inline(_duo_message())}</div>'
-        '</div>', unsafe_allow_html=True)
+        f'<div class="duo-term" role="status" lang="{LANG}">'
+        f'<span class="p" aria-hidden="true">$</span>'
+        f'<span>{_md_inline(_duo_message())}</span></div>',
+        unsafe_allow_html=True)
 
     st.markdown(f'<p class="pc-path-h" lang="{LANG}">{t("u_parcours")}</p>',
                 unsafe_allow_html=True)
@@ -3543,7 +3643,7 @@ with tab_d:
                         st.markdown(
                             f'<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;'
                             f'margin-bottom:3px;border-radius:8px;'
-                            f'background:{"#fdf1f1" if bad else "#f5fbec"};'
+                            f'background:{"#1a0d0d" if bad else "#08170f"};'
                             f'border-left:4px solid {"var(--danger)" if bad else "var(--ok)"};font-size:0.9rem;">'
                             f'<div style="min-width:96px;color:var(--fg-3);">{t("d_flow_n")} #{int(i)+1}</div>'
                             f'<div style="flex:1;background:var(--border);height:7px;border-radius:10px;overflow:hidden;">'
@@ -3555,7 +3655,7 @@ with tab_d:
                     st.bar_chart(pd.DataFrame({
                         "cat": ["Normal", "Alert"],
                         "n": [nb_total - nb_alert, nb_alert]}).set_index("cat"),
-                        height=230, color="#58cc02")
+                        height=230, color="#39ff88")
                     st.caption(f"threshold = {thr:.3f}")
 
                 # Cinq graphiques empilés, c'était un mur en travers de la
@@ -3832,7 +3932,7 @@ with tab_r:
                 dfa = pd.DataFrame({
                     "class": [r["classe"] for r in rows],
                     "recall": [r["recall"] * 100 for r in rows]})
-                st.bar_chart(dfa.set_index("class"), height=260, color="#58cc02")
+                st.bar_chart(dfa.set_index("class"), height=260, color="#39ff88")
             st.download_button(t("r_export"),
                                pd.DataFrame(om["per_class"]).to_csv(index=False).encode(),
                                "metrics_per_class.csv", width='stretch')
@@ -3852,7 +3952,7 @@ with tab_r:
                 st.line_chart(pd.DataFrame({
                     "false alarms %": ad["fpr"][::step] * 100,
                     "detection %": ad["tpr"][::step] * 100}).set_index("false alarms %"),
-                    height=260, color="#58cc02")
+                    height=260, color="#39ff88")
                 op = target_fpr
                 ph = float(np.interp(op, ad["fpr"], ad["tpr"]))
                 st.caption(f"→ at {op*100:.1f} % false alarms, detection = **{ph*100:.1f} %**")
