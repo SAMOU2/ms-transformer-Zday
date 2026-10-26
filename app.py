@@ -120,7 +120,7 @@ T = {
     "o_score_v":    ("Probabilité d'attaque — gradient boosting", "Attack probability — gradient boosting"),
     "o_honest_h":   ("Ce que ce travail démontre", "What this work shows"),
     "o_honest":     (
-        "**Le résultat principal.** Un détecteur entraîné sans jamais voir cinq familles "
+        "Le résultat principal. Un détecteur entraîné sans jamais voir cinq familles "
         "d'attaque les reconnaît ensuite avec un **AUROC de 0,9668** et **93,12 % de "
         "rappel** à 9,03 % de fausses alertes — 5 117 attaques interceptées sur 5 495.\n\n"
         "**Ce qui a changé la conclusion.** La famille Bot était bloquée à 49,34 % de "
