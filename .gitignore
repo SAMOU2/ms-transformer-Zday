@@ -169,11 +169,3 @@ results/*.pt
 
 
 
-
-
-# ------------------------------------------------------------
-#  APERÇU STATIQUE DE L'INTERFACE
-#  `preview_parcours.html` est une photo de app.py, regénérée par
-#  `_build_preview.py` : elle ne se versionne pas, elle se refait.
-# ------------------------------------------------------------
-preview_parcours.html
