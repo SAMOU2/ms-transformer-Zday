@@ -1263,6 +1263,10 @@ st.markdown("""
 /* ══════════════════════════════════════════════════════════════════
    SYSTÈME DE DESIGN « PARCOURS » — CLAIR, ROND, CONTRASTÉ
    ──────────────────────────────────────────────────────────────────
+   Tout le thème tient dans ce bloc : aucune feuille de style externe,
+   aucun dossier .streamlit à copier à côté de app.py. Les widgets natifs
+   (curseur, cases, boutons radio) sont repeints plus bas.
+
    La page n'est plus un tableau de bord sombre : c'est un parcours.
    Un bandeau d'unité vert, un chemin qui descend, des jalons à
    atteindre. La forme change ; la règle de fond ne change pas :
@@ -1448,6 +1452,36 @@ div[role="radiogroup"] label:has(input:checked) {
 [data-testid="stButtonGroup"] button {
   border-radius: 999px !important; font-weight: 700 !important;
 }
+
+/* ---- widgets natifs : l'accent rouge de Streamlit devient vert ----
+   Streamlit peint le curseur, la case cochée et le point du bouton radio
+   avec sa couleur primaire, rouge #FF4B4B par défaut. Ici le rouge veut
+   dire « menace » : un curseur de réglage ne doit pas annoncer un danger.
+   Ces règles remplacent le fichier de thème de Streamlit — l'application
+   tient ainsi dans un seul fichier, sans dossier .streamlit à copier. */
+[data-testid="stSlider"] [role="slider"] {
+  background-color: var(--duo-d) !important;
+  box-shadow: 0 0 0 2px #ffffff, 0 2px 0 var(--duo-dd) !important;
+}
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stSliderTrack"],
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stSliderTrackFill"] {
+  background: var(--duo) !important;
+}
+[data-testid="stSlider"] [data-testid="stThumbValue"] {
+  color: var(--duo-dd) !important; font-weight: 800 !important;
+}
+[data-testid="stCheckbox"] [data-baseweb="checkbox"] span[aria-checked="true"],
+[data-testid="stCheckbox"] input:checked + span {
+  background-color: var(--duo-d) !important;
+  border-color: var(--duo-dd) !important;
+}
+div[role="radiogroup"] [data-baseweb="radio"] div[aria-checked="true"],
+div[role="radiogroup"] input:checked + div {
+  background-color: var(--duo-d) !important;
+  border-color: var(--duo-dd) !important;
+}
+/* les messages natifs : même famille de couleurs, bord gauche franc */
+[data-testid="stAlert"] [data-testid="stAlertContentInfo"] { color: var(--fg-2); }
 
 /* ---- onglets : une rangée de pastilles, pas un soulignement ----- */
 [data-baseweb="tab-list"] {
