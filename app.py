@@ -488,6 +488,27 @@ T = {
                      "waiting for a measurement. A padlock is still clickable — it says "
                      "what is missing."),
     "pc_prog":      ("Étapes accessibles", "Steps available"),
+    "cmp_why":      ("Ligne « non mesurable » : le fichier **{f}** n'a pas été trouvé "
+                     "à côté de `app.py`. Ce n'est pas une impossibilité du détecteur — "
+                     "le score existe, il n'a simplement pas été chargé. Le recopier "
+                     "suffit.",
+                     "“Not measurable” row: the file **{f}** was not found next to "
+                     "`app.py`. This is not an impossibility of the detector — the "
+                     "score exists, it simply was not loaded. Copying the file is enough."),
+    "cmp_fusion":   ("Le tableau des trois détecteurs est dressé à l’étape 3, sur "
+                     "le même lot et le même seuil. Il n’est pas recalculé ici : ce "
+                     "serait la même mesure, écrite à deux endroits.",
+                     "The three-detector table is drawn in step 3, on the same batch "
+                     "and the same threshold. It is not recomputed here: that would be "
+                     "the same measurement, written in two places."),
+    "cmp_scale_h":  ("Nature du score produit par chaque détecteur",
+                     "What kind of score each detector produces"),
+    "cmp_back":     ("Revoir le tableau complet (étape 3)",
+                     "See the full table again (step 3)"),
+    "c_map_na":     ("non mesurable — la projection n’a pas été calculée pour ce lot : "
+                     "seul le nuage des scores est disponible.",
+                     "not measurable — the projection was not computed for this batch: "
+                     "only the score scatter is available."),
     "un1_t":        ("Unité 1 · Le problème, et ce que répond l'application",
                      "Unit 1 · The problem, and what the app answers"),
     "un1_s":        ("Ce que reçoit un centre opérationnel, pourquoi les systèmes "
@@ -683,6 +704,7 @@ T = {
                      "remplit à chaque analyse lancée.",
                      "No action recorded in this session. The registry fills up with "
                      "every analysis you run."),
+    "rp_reg_h":     ("Registre de la session", "Session registry"),
     "rp_reset":     ("Effacer le registre", "Clear the registry"),
 
     "pc_now":       ("étape en cours", "current step"),
@@ -2145,8 +2167,13 @@ def compare_three(fpr_pct: float, lang: str, n: int = 4000):
                      or (mode_ == "one-class" and FEAT is None))
         if not dispo:
             manquants.append(name)
+            # Le fichier manquant est conservé : « non mesurable » sans sa
+            # cause se lit comme une impossibilité du modèle, alors que c'est
+            # le plus souvent un fichier qui n'a pas été copié.
             rows.append({"key": mode_, "mode": name, "n": len(Xs),
-                         "alerts": None, "recall": None, "per": {}})
+                         "alerts": None, "recall": None, "per": {},
+                         "file": ("models/features_maha.npz" if mode_ == "one-class"
+                                  else "models/supervised_hgb.pkl")})
             continue
         sc, _, _, _ = infer(Xs, mode_=mode_)
         thr = _cmp_threshold(mode_, fpr_pct)
@@ -2158,7 +2185,8 @@ def compare_three(fpr_pct: float, lang: str, n: int = 4000):
             if m.sum():
                 per[f] = float(pred[m].mean())
         rows.append({"key": mode_, "mode": name, "n": len(sc),
-                     "alerts": int(pred.sum()), "recall": recall, "per": per})
+                     "alerts": int(pred.sum()), "recall": recall, "per": per,
+                     "file": None})
     return {"rows": rows, "fams": fams, "n": len(Xs), "manquants": manquants}
 
 
@@ -2908,8 +2936,11 @@ with tab_d:
             violation = np.asarray(st.session_state.get("last_viol", np.zeros(len(scores))))
             energy = np.asarray(st.session_state.get("last_energy", np.zeros(len(scores))))
             conf = np.asarray(st.session_state.get("last_conf", np.ones(len(scores))))
-            emb = np.asarray(st.session_state.get("last_emb",
-                                                  np.random.randn(len(scores), 2) * 0.01))
+            # Plus de tirage aléatoire en secours : une carte de bruit
+            # présentée comme une carte des connexions serait un mensonge.
+            # Sans projection, la section dit qu'elle n'a rien à montrer.
+            _emb = st.session_state.get("last_emb")
+            emb = np.asarray(_emb) if _emb is not None else None
 
             nb_total = len(scores)
             mask = scores > thr
@@ -2933,6 +2964,13 @@ with tab_d:
                     })
                 html_table(pd.DataFrame(_r3), caption=t("u_res_cap"), na=t("n_a"),
                            key="dl_cmp_e3", file_name="resultat_lot.csv")
+                # Une ligne « non mesurable » sans sa cause est illisible :
+                # on nomme le fichier, et on dit que ce n'est pas une
+                # impossibilité du détecteur.
+                _absen = sorted({r["file"] for r in _cmp3["rows"]
+                                 if r["alerts"] is None and r.get("file")})
+                if _absen:
+                    st.caption(t("cmp_why", f=" · ".join(_absen)))
 
                 # Les deux lectures d'un même chiffre, côte à côte. C'est la
                 # partie « expliquer sans jargon » : un chiffre sans sa limite
@@ -3072,16 +3110,19 @@ with tab_d:
                         st.line_chart(pd.DataFrame({"energy": energy[idx]}), height=170)
 
                     st.markdown(f"**{t('c_map')}**")
-                    st.scatter_chart(pd.DataFrame({
-                        "x": emb[idx, 0], "y": emb[idx, 1],
-                        "class": np.where(scores[idx] > thr,
-                                          "signalé" if LANG == "fr" else "flagged",
-                                          "normal")}),
-                        x="x", y="y", color="class", height=260)
+                    if emb is None or len(emb) != len(scores):
+                        st.caption(t("c_map_na"))
+                    else:
+                        st.scatter_chart(pd.DataFrame({
+                            "x": emb[idx, 0], "y": emb[idx, 1],
+                            "class": np.where(scores[idx] > thr,
+                                              "signalé" if LANG == "fr" else "flagged",
+                                              "normal")}),
+                            x="x", y="y", color="class", height=260)
 
         st.divider()
         if _pc == 7:
-            st.markdown("**Registry**")
+            st.markdown(f"**{t('rp_reg_h')}**")
             if st.session_state.get("history"):
                 dfh = pd.DataFrame(st.session_state.history)
                 # Le registre est un journal : il se lit ligne par ligne, donc <table>.
@@ -3154,211 +3195,33 @@ with tab_d:
                     except Exception:
                         pass
 
-        # ════════════════════════════════════════════════════════════════════
-        #  REJEU FLUX PAR FLUX — un lot déjà noté, qui défile
-        # ════════════════════════════════════════════════════════════════════
-        if "last_scores" in st.session_state and _pc == 4:
-            st.write("")
-            st.markdown(f"**{t('rj_h')}**")
-            st.caption(t("rj_c"))
-            if st.button(t("rj_btn"), width='stretch'):
-                _scp = np.asarray(st.session_state.last_scores, dtype=float)
-                _N = len(_scp)
-                _pas = max(1, _N // 60)          # 60 mises à jour au plus
-                _zone = st.empty()
-                _barre = st.progress(0.0)
-                _cum = 0
-                for _i in range(0, _N, _pas):
-                    _cum += int((_scp[_i:_i + _pas] > thr).sum())
-                    _fait = min(_N, _i + _pas)
-                    _zone.markdown(t("rj_mid", done=f"{_fait:,}", alerts=f"{_cum:,}"))
-                    _barre.progress(_fait / _N)
-                    time.sleep(0.02)             # ~1,2 s au total
-                _barre.progress(1.0)
-                _zone.markdown(t("rj_end", alerts=f"{_cum:,}", n=f"{_N:,}"))
-            st.caption(t("rj_note"))
-
-        # ════════════════════════════════════════════════════════════════════
-        #  MODE DIRECT — flux notés à mesure que le collecteur les écrit
-        #  Ce n'est pas une simulation : les lignes viennent d'un fichier écrit
-        #  par un collecteur réseau, et sont notées au fur et à mesure.
-        # ════════════════════════════════════════════════════════════════════
-        st.write("")
-        if _pc == 4:
-            st.markdown(f"**{t('lv_h')}**")
-            st.caption(t("lv_c"))
-            _lv_path = os.path.join(ROOT, "data", "live", "live_flows.csv")
-
-            if not os.path.exists(_lv_path):
-                st.info(t("lv_missing", p="data/live/live_flows.csv"))
-                with st.expander(t("lv_how")):
-                    st.markdown(t("lv_how_body"))
-            else:
-                _lv_on = bool(st.session_state.get("lv_on"))
-                if st.button(t("lv_stop") if _lv_on else t("lv_start"), width='stretch'):
-                    st.session_state.lv_on = not _lv_on
-                    st.session_state.lv_skip = 0
-                    st.session_state.lv_n = 0
-                    st.session_state.lv_a = 0
-                    st.session_state.lv_rows = []
-                    st.rerun()
-
-                @st.fragment(run_every=1.5)
-                def _live_panel():
-                    """Relit le fichier du collecteur toutes les deux secondes."""
-                    if not st.session_state.get("lv_on"):
-                        st.caption(t("lv_wait"))
-                        return
-                    _skip = int(st.session_state.get("lv_skip", 0))
-                    try:
-                        # skiprows évite de réanalyser tout l'historique à chaque tour
-                        _df = pd.read_csv(_lv_path,
-                                          skiprows=range(1, _skip + 1) if _skip else None)
-                    except Exception:
-                        st.caption(t("lv_wait"))
-                        return
-
-                    _new = _df if len(_df) else _df.iloc[0:0]
-                    if len(_new) > 2000:          # garde-fou : on ne noie pas l'écran
-                        _new = _new.iloc[:2000]
-
-                    if len(_new):
-                        st.session_state.lv_skip = _skip + len(_new)
-                        _X, _miss = live_prepare(_new)
-                        if _miss:
-                            st.error(t("lv_cols", c=", ".join(str(x) for x in _miss[:6])))
-                            return
-                        _sc = np.asarray(infer(_X)[0], dtype=float)
-                        _hit = _sc > thr
-                        st.session_state.lv_n = int(st.session_state.get("lv_n", 0)) + len(_sc)
-                        st.session_state.lv_a = int(st.session_state.get("lv_a", 0)) + int(_hit.sum())
-                        _rows = list(st.session_state.get("lv_rows", []))
-                        _now = datetime.datetime.now().strftime("%H:%M:%S")
-                        for _k in range(len(_sc)):
-                            _rows.append({"heure": _now,
-                                          "score": float(_sc[_k]),
-                                          "verdict": t("tr_hit") if bool(_hit[_k]) else t("tr_quiet")})
-                        st.session_state.lv_rows = _rows[-12:]
-
-                    _n = int(st.session_state.get("lv_n", 0))
-                    _a = int(st.session_state.get("lv_a", 0))
-                    _r = (100.0 * _a / _n) if _n else 0.0
-
-                    # `role="status"` : le compteur est annoncé aux lecteurs d'écran
-                    # quand il change. Le symbole ⚠ et le mot « alerte » portent
-                    # l'information autant que la couleur (WCAG 1.4.1).
-                    _html = (
-                        f'<div class="lv-head" role="status">'
-                        f'<span class="lv-dot" aria-hidden="true"></span>'
-                        f'<b>{t("lv_live_on")}</b>'
-                        f'<span>{t("lv_count", n=f"{_n:,}", a=f"{_a:,}", r=f"{_r:.1f}")}</span>'
-                        f'</div>'
-                        f'<div class="lv-bar" aria-hidden="true">'
-                        f'<div class="lv-fill" style="width:{min(100.0, _r):.1f}%"></div></div>')
-                    for _i, _c in enumerate(reversed(st.session_state.get("lv_rows", [])[-6:])):
-                        _est_alerte = "⚠" in str(_c.get("verdict", ""))
-                        _html += (
-                            f'<div class="lv-card{" lv-al" if _est_alerte else ""}" '
-                            f'style="animation-delay:{_i * 0.05:.2f}s">'
-                            f'<span class="lv-t">{_c.get("heure", "")}</span>'
-                            f'<span class="lv-s">{float(_c.get("score", 0.0)):.3g}</span>'
-                            f'<span class="lv-v">{_c.get("verdict", "")}</span></div>')
-                    st.markdown(_html, unsafe_allow_html=True)
-                    if not _n:
-                        st.caption(t("lv_wait"))
-
-                # Animations. Injectées hors du fragment pour ne pas être réécrites
-                # à chaque rafraîchissement. `prefers-reduced-motion` les coupe : une
-                # animation n'est jamais une information, seulement un confort.
-                st.markdown("""<style>
-        .lv-head{display:flex;align-items:center;gap:10px;font-size:.95rem;
-                 color:var(--fg-2);margin-bottom:9px}
-        .lv-dot{width:10px;height:10px;border-radius:50%;background:var(--ok);
-                animation:lv_pulse 1.6s ease-in-out infinite}
-        @keyframes lv_pulse{
-          0%{box-shadow:0 0 0 0 rgba(94,224,138,.65)}
-          70%{box-shadow:0 0 0 10px rgba(94,224,138,0)}
-          100%{box-shadow:0 0 0 0 rgba(94,224,138,0)}}
-        .lv-bar{height:8px;border-radius:999px;background:var(--surface-2);
-                border:1px solid var(--border);overflow:hidden;margin:2px 0 15px}
-        .lv-fill{height:100%;background:linear-gradient(90deg,var(--info),var(--warn));
-                 animation:lv_grow .9s cubic-bezier(.2,.8,.2,1) both}
-        @keyframes lv_grow{from{width:0}}
-        .lv-card{display:flex;gap:12px;align-items:center;padding:7px 11px;margin-bottom:6px;
-                 border-radius:8px;background:var(--surface-2);
-                 border-left:3px solid var(--ok);animation:lv_in .35s ease-out both}
-        .lv-card.lv-al{border-left-color:var(--danger)}
-        @keyframes lv_in{from{opacity:.35;transform:translateY(-4px)}to{opacity:1;transform:none}}
-        .lv-t{color:var(--fg-4);font-size:.82rem;min-width:62px}
-        .lv-s{color:var(--fg-1);min-width:78px;font-variant-numeric:tabular-nums}
-        .lv-v{margin-left:auto;font-size:.85rem;font-weight:600;color:var(--fg-2)}
-        @media (prefers-reduced-motion:reduce){
-          .lv-dot,.lv-fill,.lv-card{animation:none !important}}
-        </style>""", unsafe_allow_html=True)
-
-                _live_panel()
 
         if _pc == 5:
-            # ── Comparaison des trois détecteurs sur le même lot ──────────────────
+            # ── Comparer : on ne recalcule plus ce qui est déjà affiché ─────────
+            # Le tableau des trois détecteurs est dressé à l'étape 3, sur le
+            # même lot et le même seuil. Le recalculer ici donnerait deux fois
+            # la même mesure, à deux endroits à corriger séparément le jour où
+            # un seuil change. On ajoute seulement ce que l'étape 3 ne dit pas :
+            # la nature du score produit par chaque détecteur.
             st.divider()
-            if st.button(t("cmp_btn"), width='stretch'):
-                _Xs = st.session_state.get("last_batch")
-                if _Xs is not None:
-                    st.session_state.pc_step = 5
-                if _Xs is None:
-                    st.info(t("cmp_nodata"))
-                else:
-                    _labs = st.session_state.get("last_true")
-                    if _labs is None:
-                        st.caption(t("lab_none"))
-                    _fpr = float(st.session_state.get("last_fpr", 5.0))
-                    _rows = []
-                    _manquants = []
-                    with st.spinner(t("cmp_btn")):
-                        for _m, _name in (("modele", "MS-Transformer"),
-                                          ("one-class", "One-class"),
-                                          ("supervise", "Supervised" if LANG == "en" else "Supervisé")):
-                            # Un détecteur indisponible garde sa ligne, marquée « n/a ».
-                            # Le supprimer ferait croire à deux détecteurs au lieu de
-                            # trois — c'est exactement ce qui se produisait quand
-                            # models/features_maha.npz n'existait pas.
-                            _dispo = not ((_m == "supervise" and HGB is None and SUP is None)
-                                          or (_m == "one-class" and FEAT is None))
-                            if not _dispo:
-                                _manquants.append(_name)
-                                _rows.append({
-                                    t("cmp_col"): _name,
-                                    t("cmp_alerts"): t("n_a"),
-                                    t("cmp_rate"): t("n_a"),
-                                    t("cmp_recall"): t("n_a"),
-                                    t("cmp_scale"): detector_scales().get(_m, {}).get("kind", t("n_a")),
-                                })
-                                continue
-                            _sc, _, _, _ = infer(_Xs, mode_=_m)
-                            _thr = _cmp_threshold(_m, _fpr)
-                            _nb = int((_sc > _thr).sum())
-                            _rec = t("n_a")
-                            if _labs is not None:
-                                _lab = np.array([str(v) for v in _labs])
-                                _atk = ~np.array(["BENIGN" in str(v).upper() for v in _lab])
-                                if _atk.sum() > 0:
-                                    _rec = f"{(_sc[_atk] > _thr).mean()*100:.1f} %"
-                            _rows.append({
-                                t("cmp_col"): _name,
-                                t("cmp_alerts"): f"{_nb}/{len(_sc)}",
-                                t("cmp_rate"): f"{_nb/len(_sc)*100:.1f} %",
-                                t("cmp_recall"): _rec,
-                                t("cmp_scale"): detector_scales()[_m]["kind"],
-                            })
-                    if _rows:
-                        st.markdown(f"**{t('cmp_h')}**")
-                        html_table(pd.DataFrame(_rows),
-                                   caption=t("cmp_intro", fpr=f"{_fpr:g}"),
-                                   na=t("n_a"), key="dl_cmp_lot",
-                                   file_name="comparaison_detecteurs.csv")
-                        if _manquants:
-                            st.warning(t("cmp_indispo", d=", ".join(_manquants)))
-                        st.caption(t("cmp_note"))
+            _Xs = st.session_state.get("last_batch")
+            if _Xs is None:
+                st.info(t("cmp_nodata"))
+            else:
+                st.caption(t("cmp_fusion"))
+                _scales = detector_scales()
+                _lignes = [{t("cmp_col"): _n,
+                            t("cmp_scale"): _scales.get(_k, {}).get("kind", t("n_a"))}
+                           for _k, _n in (("modele", "MS-Transformer"),
+                                          ("one-class", t("mode_one_class")),
+                                          ("supervise", t("mode_supervise")))]
+                html_table(pd.DataFrame(_lignes, columns=[t("cmp_col"), t("cmp_scale")]),
+                           caption=t("cmp_scale_h"),
+                           na=t("n_a"), key="dl_cmp_scale",
+                           file_name="nature_des_scores.csv")
+                if st.button(t("cmp_back"), key="pc_back3", width="stretch"):
+                    st.session_state.pc_step = 3
+                    st.rerun()
 
         # ════════════════════════════════════════════════════════════════════
         #  ÉTAPE 6 · EXPORTER — le coffre : ce que la session a réellement produit
