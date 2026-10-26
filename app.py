@@ -28,6 +28,8 @@ import os
 import datetime
 import json
 import time
+import re
+import html as _html
 
 st.set_page_config(page_title="PSM-HT · Zero-Day Detection",
                    page_icon="🛡", layout="wide")
@@ -68,7 +70,9 @@ T = {
     "cmp_kind_dist":("distance (sans plafond)", "distance (no upper bound)"),
     "cmp_kind_prob":("probabilité 0–1", "probability 0–1"),
     "cmp_best":     ("meilleur rappel", "best recall"),
-    "cmp_nodata":   ("Aucun lot analysé pour l'instant — lance d'abord une analyse.",
+    "cmp_nodata":   ("Aucun lot à comparer : la comparaison porte sur le lot que tu "
+                     "viens d'analyser. Remonte à l'étape 1, lance une analyse, puis "
+                     "reviens cliquer ce bouton.",
                      "No batch analysed yet — run an analysis first."),
     "cmp_nolabel":  ("Lot sans étiquette : le rappel ne peut pas être mesuré ici.",
                      "Unlabelled batch: recall cannot be measured here."),
@@ -158,7 +162,12 @@ T = {
                      "A collector writes finished flows into a CSV file; the interface "
                      "scores them as they arrive. Nothing is simulated here: what you "
                      "see comes from the file, not from a random draw."),
-    "lv_missing":   ("Aucun collecteur détecté. Fichier attendu : `{p}`.",
+    "lv_missing":   ("Aucun collecteur détecté : le fichier `{p}` n'existe pas encore. "
+                     "Démarre CICFlowMeter (Java) en sortie vers ce chemin, ou dépose "
+                     "un CSV déjà collecté à cet emplacement. Rien n'est simulé ici : "
+                     "l'écran reste vide tant que le collecteur n'a rien écrit. Pour "
+                     "une démonstration sans collecteur, utilise l'étape 1 en mode "
+                     "« fichier » ou le rejeu flux par flux, annoncés comme tels.",
                      "No collector detected. Expected file: `{p}`."),
     "lv_how":       ("Comment alimenter ce fichier", "How to feed this file"),
     "lv_how_body":  ("Le collecteur doit être **CICFlowMeter**, l'outil qui a produit "
@@ -192,8 +201,11 @@ T = {
                      "Waiting for flows… The collector must write to the file."),
     "lv_count":     ("{n} flux notés · {a} alertes · {r} % d'alertes",
                      "{n} flows scored · {a} alarms · {r} % alarms"),
-    "lv_cols":      ("Colonnes manquantes dans le fichier : {c}. Les scores seraient "
-                     "faux, l'analyse est refusée.",
+    "lv_cols":      ("Analyse refusée : le fichier du collecteur n'a pas les colonnes "
+                     "attendues ({c}). Les scores seraient faux, donc rien n'est "
+                     "affiché. Vérifie que le collecteur est bien CICFlowMeter (Java) : "
+                     "la version `cicflowmeter` en Python ne produit que 70 des 78 "
+                     "colonnes du modèle.",
                      "Missing columns in the file: {c}. Scores would be wrong, the "
                      "analysis is refused."),
     "lv_last":      ("Derniers flux notés", "Last scored flows"),
@@ -209,6 +221,14 @@ T = {
     "d_s3":         ("3 · Suivre une décision, flux par flux",
                      "3 · Follow one decision, flow by flow"),
     "d_s4":         ("4 · Comparer les trois détecteurs", "4 · Compare the three detectors"),
+
+    "sb_form_c":    ("Choisis, puis applique. Rien ne change avant le clic : "
+                     "c'est ce qui garde le clavier et la lecture à leur place.",
+                     "Choose, then apply. Nothing changes before the click: that is "
+                     "what keeps the keyboard and the reading in place."),
+    "sb_apply":     ("Appliquer les réglages", "Apply settings"),
+
+    "cmp_csv":      ("Télécharger ce tableau en CSV", "Download this table as CSV"),
 
     "cmp_indispo":  ("{d} ne peut pas être calculé : `models/features_maha.npz` "
                      "est absent. Ce fichier n'est écrit que par une évaluation du "
@@ -314,18 +334,46 @@ T = {
     "d_clean_sub":  ("aucune alerte", "no alert"),
     "d_detected":   ("% du flux", "% of traffic"),
     "d_below":      ("sous le seuil", "below threshold"),
+    "d_lot_cap":    ("Même lot de flux, même seuil de {fpr} % de fausses alertes. "
+                     "Les trois chiffres ci-dessus portent sur ce lot-là, pas sur "
+                     "le jeu de test complet.",
+                     "Same batch of flows, same {fpr}% false-alarm threshold. The three "
+                     "figures above describe that batch, not the full test set."),
+    "d_tp":         ("Vrais positifs", "True positives"),
+    "d_fp":         ("Fausses alertes", "False alerts"),
+    "d_zd":         ("Attaques du lot", "Attacks in the batch"),
+    "d_recall_s":   ("de rappel", "recall"),
+    "d_fpr_s":      ("de fausses alertes", "false alerts"),
     "d_suspect_h":  ("Les connexions les plus suspectes", "Most suspicious connections"),
-    "d_suspect_c":  ("Classées de la plus anormale à la moins anormale. Rouge = au-dessus du seuil.",
+    "d_suspect_c":  ("Classées de la plus anormale à la moins anormale. Les flux "
+                     "au-dessus du seuil portent une teinte distincte **et** leur nom "
+                     "dans la légende : la couleur n'est jamais seule à porter "
+                     "l'information.",
                      "Ranked from most to least anomalous. Red = above threshold."),
     "d_flow_n":     ("Connexion", "Connection"),
     "d_alert":      ("ALERTE", "ALERT"),
     "d_ok":         ("normal", "normal"),
     "d_dist_h":     ("Répartition", "Breakdown"),
     "d_charts_h":   ("Analyse détaillée", "Detailed analysis"),
+    "adv_h":        ("Aller plus loin · les cinq graphiques", "Going further · the five charts"),
+    "adv_c":        ("Ils montrent les mesures internes du modèle. Rien n'y est "
+                     "nécessaire pour lire le résultat : c'est pour vérifier ou "
+                     "pour la soutenance.",
+                     "They show the model's internal measures. Nothing here is needed "
+                     "to read the result: it is for checking, or for the defence."),
+    "pc_do":        ("", ""),
+    "pc_prev":      ("← Étape précédente", "← Previous step"),
+    "pc_next":      ("Étape suivante →", "Next step →"),
+    "pc_next_why":  ("L’étape suivante s’ouvre quand celle-ci a produit un résultat.",
+                     "The next step opens once this one has produced a result."),
     "d_advice":     ("Métriques calculées sur {n} connexions ; tracés limités à {m} points.",
                      "Metrics computed on {n} connections; plots limited to {m} points."),
-    "d_no_data":    ("Lance une analyse pour afficher les résultats.",
-                     "Run an analysis to display results."),
+    "d_no_data":    ("Rien à afficher pour l'instant : aucune analyse n'a été lancée. "
+                     "Choisis une source à l'étape 1, puis clique « Analyser ». "
+                     "Le résultat apparaîtra ici, au-dessus des graphiques.",
+                     "Nothing to show yet: no analysis has been run. Pick a source in "
+                     "step 1, then click Analyse. The result will appear here, above "
+                     "the charts."),
 
     # charts
     "c_score":      ("Score d'anomalie face au seuil", "Anomaly score against threshold"),
@@ -433,6 +481,160 @@ T = {
     "c_mean":       ("Moyenne (toutes familles)", "Average (all families)"),
     "c_lofo_h":     ("Même comparaison, en retirant une famille à la fois :",
                      "Same comparison, withholding one family at a time:"),
+    "pc_path_c":    ("Lecture de haut en bas. Un verrou n'est pas un refus : c'est "
+                     "une étape qui attend une mesure. Un cadenas se clique quand "
+                     "même — il dit ce qui manque.",
+                     "Read top to bottom. A padlock is not a refusal: it is a step "
+                     "waiting for a measurement. A padlock is still clickable — it says "
+                     "what is missing."),
+    "pc_prog":      ("Étapes accessibles", "Steps available"),
+    "u_title":      ("Unité 1 · Analyser un trafic réseau",
+                     "Unit 1 · Analysing network traffic"),
+    "u_sub":        ("Chaque étape s'ouvre quand la précédente a produit un résultat "
+                     "réel — jamais par simple clic.",
+                     "Each step opens once the previous one produced a real result — "
+                     "never through a mere click."),
+    "u_guide":      ("Guide", "Guide"),
+    "u_guide_b":    ("Le parcours se lit de haut en bas, à gauche. Chaque nœud est un "
+                     "bouton : Tab pour le parcourir, Entrée pour l'ouvrir. Un cadenas "
+                     "s'ouvre aussi — il dit ce qui manque, il ne refuse pas.",
+                     "The path reads top to bottom, on the left. Every node is a button: "
+                     "Tab to walk it, Enter to open it. A padlock opens too — it says "
+                     "what is missing, it does not refuse."),
+    "u_prog":       ("Progression", "Progress"),
+    "u_prog_n":     ("{n} étapes sur {m} · état réel des données",
+                     "{n} of {m} steps · true state of the data"),
+    "u_parcours":   ("Parcours", "Path"),
+    "u_res_cap":    ("Résultat sur le lot analysé", "Result on the analysed batch"),
+    "u_next_n":     ("Débloquer l'étape {n} · {nom}", "Unlock step {n} · {name}"),
+    "u_redo":       ("Refaire l'analyse", "Re-run the analysis"),
+    "u_redo_no":    ("Aucun lot en mémoire : il n'y a rien à refaire pour l'instant.",
+                     "No batch in memory: there is nothing to re-run yet."),
+    "u_mem_h":      ("Ce qui est mémorisé entre les étapes",
+                     "What is remembered between steps"),
+    "u_mem_b":      ("<ul><li>le lot analysé et ses scores ;</li>"
+                     "<li>le budget de fausses alertes ;</li>"
+                     "<li>la langue et le détecteur choisis ;</li>"
+                     "<li>le retour en arrière reste possible : rien n'est consommé.</li></ul>",
+                     "<ul><li>the analysed batch and its scores;</li>"
+                     "<li>the false-alarm budget;</li>"
+                     "<li>the chosen language and detector;</li>"
+                     "<li>going back stays possible: nothing is consumed.</li></ul>"),
+    "u_lock_h":     ("Clic sur un cadenas", "Clicking a padlock"),
+    "u_lock_b":     ("L'étape s'ouvre quand même — sur sa raison, jamais sur du vide : "
+                     "« il manque un lot analysé ».",
+                     "The step still opens — on its reason, never on emptiness: "
+                     "“an analysed batch is missing”."),
+    "u_gate":       ("On n'avance pas sans cette mesure.",
+                     "No progress without that measurement."),
+    "pc_do1":       ("Ouvre un fichier de flux réseau, produit par CICFlowMeter, "
+                     "ou le lot d’exemple.",
+                     "Open a network-flow file produced by CICFlowMeter, or the sample batch."),
+    "pc_do2":       ("Choisis ce qui va être noté : ton fichier, ou un lot tiré du "
+                     "jeu de test.",
+                     "Choose what gets scored: your file, or a batch drawn from the test set."),
+    "pc_do3":       ("Lis les deux encadrés, puis les trois chiffres. Dans cet ordre : "
+                     "ils disent ce que le score veut dire, et ce qu’il ne dit pas.",
+                     "Read the two boxes, then the three figures. In that order: they say "
+                     "what the score means, and what it does not."),
+    "pc_do4":       ("Suis un flux du début à la fin, pour voir sur quoi la décision "
+                     "s’appuie.",
+                     "Follow one flow from start to finish, to see what the decision rests on."),
+    "pc_do5":       ("Compare les trois détecteurs sur le même lot, avec le même budget "
+                     "de fausses alertes.",
+                     "Compare the three detectors on the same batch, with the same "
+                     "false-alarm budget."),
+    "pc_do6":       ("Télécharge les tableaux et les figures de cette session.",
+                     "Download this session's tables and figures."),
+    "pc_do7":       ("Relis ce que la session a fait, dans l’ordre où ça s’est passé.",
+                     "Read back what the session did, in the order it happened."),
+    "pc_etape":     ("Étape", "Step"),
+    "means_h":      ("Ce que ça veut dire", "What this means"),
+    "means_b":      ("Le score **classe** les flux du moins au plus anormal ; il ne "
+                     "les étiquette pas. Le seuil, lui, fixe le budget de fausses "
+                     "alertes : à 5 %, un flux sur vingt du trafic bénin passe "
+                     "au-dessus. La précision qui en découle dépend de la part "
+                     "d'attaques réellement présente dans le trafic observé.",
+                     "The score **ranks** flows from least to most abnormal; it does "
+                     "not label them. The threshold sets the false-alarm budget: at "
+                     "5 %, one benign flow in twenty lands above it. The resulting "
+                     "precision depends on the share of attacks actually present in "
+                     "the observed traffic."),
+    "nomeans_h":    ("Ce que ça ne veut pas dire", "What this does not mean"),
+    "nomeans_b":    ("Ce n'est **pas un degré de dangerosité** : le trafic bénin a un "
+                     "score moyen 56 fois plus élevé que la famille Bot. Un score "
+                     "haut ne veut pas dire « attaque », un score bas ne veut pas "
+                     "dire « sûr ». Et la calibration n'a pas été mesurée : on ne "
+                     "peut pas lire ce score comme une probabilité.",
+                     "This is **not a degree of danger**: benign traffic has an "
+                     "average score 56 times higher than the Bot family. A high score "
+                     "does not mean \u201cattack\u201d, a low score does not mean "
+                     "\u201csafe\u201d. Calibration was not measured either: the score "
+                     "cannot be read as a probability."),
+
+    "pc_legend":    ("L'état n'est jamais porté par la couleur seule.",
+                     "State is never carried by colour alone."),
+    "pc_after":     ("après l'étape {n}", "after step {n}"),
+    "pc_d1":        ("un fichier CSV ou Parquet", "a CSV or Parquet file"),
+    "pc_d2":        ("un lot tiré du test, ou ton fichier", "a batch from the test set, or your file"),
+    "pc_d3":        ("ce que le score veut dire", "what the score means"),
+    "pc_d4":        ("le trajet complet d'une décision", "the full path of one decision"),
+    "pc_d5":        ("même lot, trois approches", "same batch, three approaches"),
+    "pc_d6":        ("tableaux en CSV, figures en PNG", "tables as CSV, figures as PNG"),
+    "pc_d7":        ("ce que la session a fait", "what the session did"),
+    "pc_cur":       ("Étape courante", "Current step"),
+    "pc_locked":    ("verrouillée", "locked"),
+    "pc_open":      ("ouverte", "open"),
+    "pc_missing":   ("Il manque une analyse : aucun flux n'a encore été noté. "
+                     "Choisis une source à l'étape 1, puis clique « Analyser ».",
+                     "An analysis is missing: no flow has been scored yet. Pick a "
+                     "source in step 1, then click Analyse."),
+    "pc_missing_b": ("Il manque un lot analysé en mémoire : la comparaison porte sur "
+                     "ce que tu viens de traiter.",
+                     "A batch is missing from memory: the comparison uses what you "
+                     "just processed."),
+    "pc_go1":       ("Aller à l'étape 1", "Go to step 1"),
+
+    "pc1":          ("Ouvrir un trafic", "Open a traffic file"),
+    "pc2":          ("Choisir la source", "Choose the source"),
+    "pc3":          ("Lire le résultat", "Read the result"),
+    "pc4":          ("Suivre un flux", "Follow one flow"),
+    "pc5":          ("Comparer", "Compare"),
+    "pc6":          ("Exporter", "Export"),
+    "pc7":          ("Rapport", "Report"),
+
+    "ex_h":         ("Export : ce que tu peux emporter", "Export: what you can take away"),
+    "ex_c":         ("Chaque tableau du parcours se télécharge en CSV, et chaque figure "
+                     "en PNG. Les fichiers sont produits ici, à partir de ce que la "
+                     "session a réellement calculé.",
+                     "Every table in the path downloads as CSV, every figure as PNG. "
+                     "Files are produced here, from what this session actually computed."),
+    "ex_none":      ("Rien à exporter pour l'instant : lance d'abord une analyse.",
+                     "Nothing to export yet: run an analysis first."),
+    "ex_fig":       ("Figures du dossier results/", "Figures from the results/ folder"),
+
+    "rp_h":         ("Rapport de session", "Session report"),
+    "rp_c":         ("Ce que cette session a fait, dans l'ordre. Aucun chiffre n'est "
+                     "saisi à la main : tout vient des calculs et des fichiers du dépôt.",
+                     "What this session did, in order. No figure is typed by hand: "
+                     "everything comes from the computations and the repository files."),
+    "rp_none":      ("Aucune action enregistrée dans cette session. Le registre se "
+                     "remplit à chaque analyse lancée.",
+                     "No action recorded in this session. The registry fills up with "
+                     "every analysis you run."),
+    "rp_reset":     ("Effacer le registre", "Clear the registry"),
+
+    "pc_now":       ("étape en cours", "current step"),
+    "pc_done":      ("étape faite", "step done"),
+    "pc_todo":      ("étape à venir", "step to come"),
+
+    "cmp_fail":     ("Comparaison impossible : {e}. Les trois détecteurs n'ont pas pu "
+                     "être calculés sur ce lot. Vérifie que "
+                     "`data/processed/X_test.npy` existe — sinon relance "
+                     "`py 01_data_preparation.py` — puis réessaie.",
+                     "Comparison failed: {e}. The three detectors could not be computed "
+                     "on this batch. Check that `data/processed/X_test.npy` exists "
+                     "(otherwise re-run `py 01_data_preparation.py`), then try again."),
     "c_collapse":   (
         "Le superviseur tombe à **{pct}** sur « {fam} ». Une famille "
         "structurellement différente n'est pas reconnue, quelle que soit la qualité "
@@ -625,10 +827,14 @@ T = {
         "approach, and the least effective here: AUROC 0.7186 against 0.9668 for "
         "gradient boosting."),
     "mode_supervise_d": (
-        "A vu les familles connues à l'entraînement. AUROC 0,9668 et 93,12 % de "
-        "rappel à 9,03 % de fausses alertes : c'est le détecteur retenu.",
-        "Saw the known families during training. AUROC 0.9668 and 93.12 % recall "
-        "at 9.03 % false alarms: this is the retained detector."),
+        "A vu les familles connues à l'entraînement : c'est le détecteur retenu. "
+        "Sur le jeu de test gelé, il atteint AUROC 0,9668 et 93,12 % de rappel à "
+        "9,03 % de fausses alertes. Le curseur ci-dessous fixe, lui, la cible de "
+        "la prochaine analyse : les deux nombres ne mesurent pas la même chose.",
+        "Saw the known families during training: this is the retained detector. "
+        "On the frozen test set it reaches AUROC 0.9668 and 93.12 % recall at "
+        "9.03 % false alarms. The slider below sets the target of the next run: "
+        "the two numbers do not measure the same thing."),
 
     # en-tête
     "eyebrow":      ("CICIDS2017 · Détection d'anomalies Zero-Day",
@@ -982,8 +1188,30 @@ st.markdown("""
 /* ---- base ---- */
 html { font-size: 16px; }
 .stApp { background: var(--bg) !important; color: var(--fg-2) !important; }
-.block-container { padding-top: var(--sp-3); padding-bottom: var(--sp-5);
-                   max-width: 1320px; }
+
+/* ---- barre latérale : la même surface que les cartes -------------------
+   Le thème de .streamlit/config.toml la peint déjà ; cette règle la rend
+   juste même si le dossier de thème n'a pas été copié à côté de app.py
+   (c'est ce qui donnait un gris #262730, le gris par défaut de Streamlit). */
+[data-testid="stSidebar"] {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+/* ---- onglets : le soulignement prend la couleur d'accent ---------------
+   Par défaut il est rouge (#FF4B4B), et ici le rouge veut dire « menace ».
+   Un onglet actif ne doit pas annoncer un danger. */
+[data-baseweb="tab-highlight"] { background-color: var(--focus) !important; }
+[data-baseweb="tab-list"] { gap: 2px; border-bottom: 1px solid var(--border); }
+[data-baseweb="tab"] { color: var(--fg-4) !important; }
+[data-baseweb="tab"][aria-selected="true"] { color: var(--fg-1) !important; }
+[data-baseweb="tab"]:hover { color: var(--fg-2) !important; }
+[data-baseweb="tab"]:focus-visible {
+  outline: 2px solid var(--focus) !important; outline-offset: 2px; }
+.block-container { padding-top: 3.9rem;   /* dégage la barre d'outils fixe */
+                   padding-bottom: var(--sp-5); max-width: 1320px; }
+/* sur mobile la barre est plus basse : on récupère la place perdue */
+@media (max-width: 900px) { .block-container { padding-top: 3.4rem; } }
 h1,h2,h3,h4 { color: var(--fg-1) !important; letter-spacing: -0.015em;
               font-weight: 650; line-height: 1.3; }
 p, li { color: var(--fg-2); line-height: 1.68; }
@@ -1064,6 +1292,224 @@ div[role="radiogroup"] label:focus-visible,
 /* ---- tableaux : lisibilité et densité ---- */
 div[data-testid="stDataFrame"] { border: 1px solid var(--border);
                                  border-radius: 8px; }
+
+/* ---- tableaux HTML sémantiques --------------------------------------
+   Un <table> est lu par un lecteur d'écran ligne par ligne et colonne par
+   colonne ; la grille canvas de Streamlit ne l'est pas. C'est pourquoi les
+   tableaux du chemin critique sont écrits en HTML : <caption> annonce le
+   sujet, <th scope="col"> les entêtes de colonne, <th scope="row"> le nom
+   de la ligne. Aucune information n'y repose sur la couleur seule. */
+.tbl { width: 100%; border-collapse: collapse; margin: var(--sp-2) 0 var(--sp-3);
+       font-size: 0.94rem; }
+.tbl caption { text-align: left; color: var(--fg-3); font-size: 0.9rem;
+               padding: 0 0 var(--sp-2); }
+.tbl th, .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--border);
+                   text-align: right; vertical-align: top; }
+.tbl th[scope="row"], .tbl th:first-child, .tbl td:first-child {
+  text-align: left; }
+.tbl thead th { color: var(--fg-1); font-weight: 650; background: var(--surface);
+                border-bottom: 2px solid var(--border-ui); }
+.tbl th[scope="row"] { color: var(--fg-2); font-weight: 600; }
+.tbl td { color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tbl tbody tr:hover { background: var(--surface-2); }
+.tbl .na { color: var(--fg-4); font-style: italic; }
+
+/* ---- titre de section d'onglet : c'est le h2 qui manquait ------------
+   Le document passait de h1 (titre du projet) à h3/h4 : la carte des
+   titres sautait un niveau, et la navigation par titres d'un lecteur
+   d'écran (touche H) annonçait une structure fausse. Chaque onglet porte
+   désormais son h2, discret mais réel. */
+.tab-h { font-size: 0.78rem !important; letter-spacing: 0.12em;
+         text-transform: uppercase; color: var(--fg-4) !important;
+         font-weight: 700; margin: 0 0 var(--sp-2) !important;
+         padding-bottom: var(--sp-1);
+         border-bottom: 1px solid var(--border); }
+/* dans la barre latérale, le titre de section reste sobre */
+[data-testid="stSidebar"] h2 { font-size: 1.05rem !important;
+                               letter-spacing: 0.02em; margin-bottom: 4px; }
+
+/* ---- mobile : sous 900 px, tout doit tenir ---------------------------
+   Streamlit garde ses colonnes côte à côte sur un téléphone : à 380 px,
+   un tableau à 5 colonnes devient illisible et les cartes se compriment
+   jusqu'à l'écrasement du texte. On empile donc les colonnes, et on rend
+   les tableaux défilables horizontalement plutôt que tronqués. */
+.tbl-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 900px) {
+  .block-container { padding-left: 0.7rem; padding-right: 0.7rem; }
+  [data-testid="column"], [data-testid="stColumn"] {
+    flex: 1 1 100% !important; width: 100% !important;
+    min-width: 100% !important;
+  }
+  .tbl { font-size: 0.86rem; }
+  .tbl th, .tbl td { padding: 6px 9px; }
+  h1, .proj-title { font-size: 1.45rem !important; line-height: 1.2; }
+  .badge { display: inline-block; margin-bottom: 4px; }
+}
+
+/* ---- les deux colonnes de l'onglet Démonstration sont des cartes ------
+   Le marqueur .pc-mark est invisible : il ne sert qu'à reconnaître la
+   colonne pour lui donner un cadre, comme sur la maquette. `:has()` est
+   pris en charge par tous les navigateurs de 2024 et suivants ; s'il ne
+   l'est pas, la mise en page reste correcte, seuls les cadres manquent. */
+[data-testid="stColumn"]:has(.pc-mark) {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: var(--sp-3) var(--sp-3) var(--sp-4);
+}
+
+/* ---- chemin en zig-zag -------------------------------------------------
+   Le nœud est un bouton rond ; son nom et son statut sont à côté. Le trait
+   pointillé qui les relie est décoratif. Aucune information n'est portée par
+   la position ni par la couleur : le statut est écrit en toutes lettres. */
+[class*="st-key-pcb_"] button {
+  width: 58px; height: 58px; min-height: 58px; border-radius: 50%;
+  padding: 0; font-size: 0.95rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2.5px solid var(--border-ui); background: var(--surface);
+  color: var(--fg-3);
+}
+[class*="st-key-pcb_"] { display: flex; justify-content: center; }
+[class*="st-key-pcb_done"] button { border-color: var(--ok); color: var(--ok); }
+[class*="st-key-pcb_cur"] button { border-color: var(--focus); color: var(--info);
+  box-shadow: 0 0 0 5px rgba(122,180,247,0.16); }
+[class*="st-key-pcb_lock"] button { border-style: dashed; color: var(--fg-4);
+  background: var(--bg); }
+[class*="st-key-pcb_open"] button { color: var(--fg-4); }
+[class*="st-key-pcb_"] button:hover { border-color: var(--focus); color: var(--fg-1); }
+[class*="st-key-pcb_"] button:focus-visible {
+  outline: 3px solid var(--focus) !important; outline-offset: 4px !important; }
+
+/* nom + statut à côté du nœud */
+.pc-txt { padding: 4px 0 0; }
+.pc-name { color: var(--fg-1); font-weight: 650; font-size: 0.92rem;
+           line-height: 1.25; }
+.pc-sub  { color: var(--fg-4); font-size: 0.78rem; line-height: 1.35;
+           margin-top: 2px; }
+.pc-badge { display: inline-block; margin-top: 5px; font-size: 0.66rem;
+            letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700;
+            color: var(--info); border: 1px solid var(--focus);
+            border-radius: 999px; padding: 1px 9px; }
+.pc-badge-cur { background: var(--surface-2); }
+
+/* trait pointillé entre deux nœuds — purement décoratif */
+.pc-link { height: 22px; margin: -2px 0; }
+.pc-link::before { content: ""; display: block; width: 62%; height: 100%;
+  margin-left: 6%; border-left: 2px dashed var(--border-ui);
+  border-bottom: 2px dashed var(--border-ui);
+  border-bottom-left-radius: 22px; }
+.pc-link-right::before { margin-left: auto; margin-right: 6%;
+  border-left: 0; border-right: 2px dashed var(--border-ui);
+  border-bottom-left-radius: 0; border-bottom-right-radius: 22px; }
+.pc-link-done::before, .pc-link-cur::before { border-color: var(--ok); opacity: 0.75; }
+.pc-link-lock::before { opacity: 0.5; }
+
+/* légende du chemin */
+.pc-legend { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+             margin: var(--sp-3) 0 var(--sp-1); font-size: 0.76rem;
+             color: var(--fg-3); }
+.pc-legend-n { color: var(--fg-4); font-style: italic; }
+
+/* en-tête du panneau de droite : où l'on est, puis le titre de l'étape */
+/* ---- en-tête d'unité : ce que fait la page, et où l'on en est -------- */
+.unit { background: var(--surface); border: 1px solid var(--border);
+        border-left: 3px solid var(--ok); border-radius: var(--radius);
+        padding: var(--sp-3) var(--sp-4); }
+.unit-t { color: var(--fg-1); font-weight: 700; font-size: 1.02rem; }
+.unit-s { color: var(--fg-3); font-size: 0.88rem; margin-top: 4px; }
+.unit-p { display: flex; flex-wrap: wrap; align-items: center; gap: 9px;
+          margin-top: var(--sp-2); }
+.unit-pl { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+           color: var(--fg-4); font-weight: 700; }
+.unit-dots { display: inline-flex; gap: 5px; }
+.u-dot { width: 9px; height: 9px; border-radius: 999px;
+         border: 1.5px solid var(--border-ui); background: transparent; }
+.u-dot.u-on { background: var(--ok); border-color: var(--ok); }
+.unit-pn { font-size: 0.76rem; color: var(--fg-4); }
+
+/* ---- parcours : le titre au-dessus de la phrase d'introduction ------- */
+.pc-path-h { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+             color: var(--fg-4); font-weight: 700; margin: 0 0 4px; }
+
+/* ---- clic sur un cadenas : ce que le verrou fait, et ne fait pas ----- */
+.u-lock { background: var(--surface-2); border: 1px solid var(--border);
+          border-left: 3px solid var(--warn); border-radius: var(--radius);
+          padding: var(--sp-3); margin-top: var(--sp-2); }
+.u-lock-h { color: var(--warn); font-weight: 700; font-size: 0.82rem;
+            letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+.u-lock-b { color: var(--fg-2); font-size: 0.86rem; line-height: 1.55; }
+.u-lock-g { color: var(--fg-4); font-size: 0.78rem; font-style: italic; margin-top: 6px; }
+
+/* ---- ce qui est mémorisé entre les étapes --------------------------- */
+.u-mem { background: var(--surface-2); border: 1px solid var(--border);
+         border-radius: var(--radius); padding: var(--sp-3); margin-top: var(--sp-3); }
+.u-mem-h { color: var(--fg-4); font-size: 0.72rem; letter-spacing: 0.12em;
+           text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
+.u-mem ul { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 0.86rem; }
+.u-mem li { margin-bottom: 3px; }
+
+.pc-do { color: var(--fg-2); font-size: 0.95rem; line-height: 1.55;
+         margin: -4px 0 var(--sp-3); max-width: 62ch; }
+
+.pc-panel-h { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+              color: var(--fg-4); font-weight: 700; margin: 0 0 6px; }
+
+/* Le rail : une pastille d'état par étape, reliée par un trait vertical.
+   Décoratif (aria-hidden) — la cible cliquable est le bouton juste dessous. */
+.pc-rail { position: relative; display: flex; justify-content: center;
+           height: 26px; margin: 0 0 2px; }
+.pc-rail::before { content: ""; position: absolute; top: 0; bottom: -34px;
+                   left: 50%; width: 2px; transform: translateX(-50%);
+                   background: var(--border); }
+.pc-rail-lock::before { background: repeating-linear-gradient(
+  to bottom, var(--border-ui) 0 6px, transparent 6px 12px); }
+.pc-rail-done::before, .pc-rail-cur::before { background: var(--ok); }
+.pc-dot { position: relative; z-index: 1; display: inline-flex;
+          align-items: center; justify-content: center;
+          width: 26px; height: 26px; border-radius: 999px;
+          background: var(--surface); border: 2px solid var(--border-ui);
+          font-size: 0.78rem; line-height: 1; }
+.pc-rail-cur .pc-dot { border-color: var(--focus); color: var(--info);
+                       box-shadow: 0 0 0 4px rgba(122,180,247,0.18); }
+.pc-rail-done .pc-dot { border-color: var(--ok); color: var(--ok); }
+.pc-rail-lock .pc-dot { border-style: dashed; color: var(--fg-4); }
+.pc-rail-open .pc-dot { color: var(--fg-4); }
+
+/* ---- progression du parcours : le nombre d'étapes que les données
+   autorisent réellement. Ce n'est pas un score : c'est un compte. */
+.pc-prog { margin: var(--sp-2) 0 var(--sp-3); }
+.pc-prog-l { font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase;
+             color: var(--fg-4); margin-bottom: 5px; font-weight: 600; }
+.pc-prog-b { height: 7px; border-radius: 999px; background: var(--surface-2);
+             border: 1px solid var(--border); overflow: hidden; }
+.pc-prog-b span { display: block; height: 100%; background: var(--ok); }
+
+/* ---- repère de parcours : où en est l'utilisateur -------------------
+   Quatre étapes, un état par étape. Le symbole (✓ ● ○) et le mot lu par
+   le lecteur d'écran portent l'état ; la couleur ne fait que renforcer. */
+.pc-bar { list-style: none; display: flex; flex-wrap: wrap; gap: var(--sp-1);
+          padding: 0; margin: 0 0 var(--sp-3); }
+.pc { display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.84rem; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--fg-3);
+      background: var(--surface); }
+.pc-m { font-size: 0.9em; }
+.pc-courant { border-color: var(--focus); color: var(--fg-1);
+              background: var(--surface-2); font-weight: 650; }
+.pc-fait { color: var(--fg-3); border-color: var(--border-ui); }
+.pc-a_venir { color: var(--fg-4); }
+@media (max-width: 900px) { .pc-bar { gap: 4px; } .pc { font-size: 0.78rem; } }
+@media print { .pc-bar { display: none; } }
+
+/* ---- impression : le jury doit pouvoir imprimer un écran lisible ------ */
+@media print {
+  .stApp { background: #fff !important; color: #111 !important; }
+  [data-testid="stSidebar"], [data-testid="stToolbar"], .badge { display: none !important; }
+  .tbl th, .tbl td { border-color: #999; color: #111 !important; }
+  .tbl thead th { background: #eee !important; }
+  .note, .pitch, .card { border: 1px solid #999 !important; background: #fff !important; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
+}
 
 /* ---- utilitaires ---- */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -1538,6 +1984,78 @@ def _cmp_threshold(mode_: str, fpr_pct: float):
     return float(np.quantile(sc, 1.0 - fpr_pct / 100.0))
 
 
+def _md_inline(txt: str) -> str:
+    """Markdown en ligne -> HTML, pour les textes qui passent dans un <caption>.
+
+    Les légendes viennent des dictionnaires T : elles contiennent du gras
+    **…** et du code `…`. Dans un bloc HTML, le markdown n'est PAS interprété :
+    sans cette conversion, l'utilisateur verrait les astérisques et les
+    accents graves à l'écran. Même piège que dans les autres blocs <div>.
+    """
+    out = _html.escape(str(txt))
+    out = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", out)
+    out = re.sub(r"`(.+?)`", r"<code>\1</code>", out)
+    return out
+
+
+def _md_plain(txt: str) -> str:
+    """Retire le balisage markdown : pour les attributs (aria-label, title)."""
+    return re.sub(r"\*\*(.+?)\*\*", r"\1", str(txt)).replace("`", "")
+
+
+def _md_html(txt: str) -> str:
+    """Markdown -> HTML, pour les textes insérés DANS un bloc HTML.
+
+    Streamlit n'interprète pas le markdown à l'intérieur d'un `<div>` : les
+    `**` restaient visibles à l'écran (bandeau d'honnêteté, panneaux des
+    limites, encadrés de l'aide). Cette fonction convertit le gras, le code
+    et les sauts de paragraphe, après échappement du texte.
+    """
+    out = _md_inline(txt)
+    out = re.sub(r"\n{2,}", "<br><br>", out)
+    return out.replace("\n", "<br>")
+
+
+def html_table(df, caption: str = "", na: str = "", first_col_header: bool = True,
+               key: str = "", file_name: str = "tableau.csv"):
+    """Affiche un DataFrame en <table> HTML, lisible par un lecteur d'écran.
+
+    Pourquoi ne pas garder st.dataframe : la grille de Streamlit est dessinée
+    dans un canvas. À l'écran, elle est parfaite ; au lecteur d'écran, elle
+    est vide. Un <table> avec <caption> et <th scope> est annoncé cellule par
+    cellule, avec le nom de la colonne et de la ligne. Ces tableaux portent les
+    chiffres du mémoire : ils doivent être lisibles par tout le monde.
+
+    L'export CSV est offert à côté pour l'usage expert (Excel, tableau croisé) :
+    on ne perd donc aucune des fonctions de la grille.
+    """
+    cap = f"<caption>{_md_inline(caption)}</caption>" if caption else ""
+    head = "".join(f'<th scope="col">{_html.escape(str(c))}</th>'
+                   for c in df.columns)
+    body = []
+    for _, row in df.iterrows():
+        cells = []
+        for j, v in enumerate(row.tolist()):
+            txt = "" if v is None else str(v)
+            cls = ' class="na"' if (na and txt == na) else ""
+            if j == 0 and first_col_header:
+                cells.append(f'<th scope="row"{cls}>{_html.escape(txt)}</th>')
+            else:
+                cells.append(f'<td{cls}>{_html.escape(txt)}</td>')
+        body.append("<tr>" + "".join(cells) + "</tr>")
+    # lang={LANG} : le lecteur d'écran choisit la bonne prononciation pour
+    # les nombres (« 9,6 % » en français, « 9.6% » en anglais).
+    st.markdown(
+        f'<div class="tbl-wrap" tabindex="0" role="group" '
+        f'aria-label="{_html.escape(_md_plain(caption) or "tableau")}">'
+        f'<table class="tbl" lang="{LANG}">{cap}<thead><tr>{head}</tr></thead>'
+        f'<tbody>{"".join(body)}</tbody></table></div>', unsafe_allow_html=True)
+    if key:
+        st.download_button(
+            t("cmp_csv"), df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=file_name, mime="text/csv", key=key)
+
+
 @st.cache_data(show_spinner=False)
 def compare_three(fpr_pct: float, lang: str, n: int = 4000):
     """Tableau comparatif des trois détecteurs sur un échantillon FIXE du test.
@@ -1714,8 +2232,8 @@ st.write("")
 # se déplie, pour ne pas repousser chaque onglet sous six lignes de texte.
 _st_parts = t("st_body").split("\n\n")
 st.markdown(
-    f'<div class="note note-warn">'
-    f'<b>{t("st_title")}</b><br>{_st_parts[0]}'
+    f'<div class="note note-warn" lang="{LANG}">'
+    f'<b>{t("st_title")}</b><br>{_md_html(_st_parts[0])}'
     f'</div>', unsafe_allow_html=True)
 if len(_st_parts) > 1:
     with st.expander(t("st_more")):
@@ -1723,39 +2241,73 @@ if len(_st_parts) > 1:
 
 st.write("")
 
-st.markdown('<div id="contenu-principal" tabindex="-1"></div>', unsafe_allow_html=True)
+st.markdown(f'<div id="contenu-principal" tabindex="-1" lang="{LANG}"></div>',
+            unsafe_allow_html=True)
+# Pas de st.write("") ici : l'ancre du lien d'évitement suffit à séparer,
+# et deux lignes vides laissaient un trou visible avant les onglets.
 
 # ══════════════════════════════════════════════════════════════════════
 #  BARRE LATÉRALE — les réglages, séparés des résultats
 #  Un réglage vit à un seul endroit : on ne cherche plus le curseur de
 #  fausses alertes dans un onglet alors qu'il vaut pour toute la page.
 # ══════════════════════════════════════════════════════════════════════
+if "last_fpr" not in st.session_state:
+    st.session_state.last_fpr = 5.0
+if "pc_step" not in st.session_state:
+    st.session_state.pc_step = 1
+
 with st.sidebar:
-    st.markdown(f"### {t('sb_h')}")
+    # h2 : la barre latérale est une section de premier niveau de la page.
+    st.markdown(f"## {t('sb_h')}")
+    st.caption(t("sb_form_c"))
 
-    # ── langue ─────────────────────────────────────────────────────────
-    st.session_state.lang = st.radio(
-        t("sb_lang"), ["fr", "en"], index=0 if LANG == "fr" else 1,
-        horizontal=True, key="lang_selector", help=t("lang_help"))
-    if st.session_state.lang != LANG:
-        st.rerun()
+    # Les trois réglages sont groupés : rien ne s'applique avant « Appliquer ».
+    # Sans ce formulaire, chaque frappe sur le curseur relançait tout le script
+    # — le focus quittait le curseur et un lecteur d'écran réannonçait la page
+    # entière à chaque pas de 0,5 %.
+    with st.form("reglages", border=False):
+        # ── langue ─────────────────────────────────────────────────────
+        _lang_choisi = st.radio(
+            t("sb_lang"), ["fr", "en"], index=0 if LANG == "fr" else 1,
+            horizontal=True, help=t("lang_help"), key="w_lang")
 
-    st.divider()
+        # ── détecteur ──────────────────────────────────────────────────
+        _modes = ["modele", "one-class", "supervise"]
+        _prev_mode = st.session_state.mode
+        _mode_choisi = st.radio(
+            t("sb_det"), _modes, index=_modes.index(_prev_mode),
+            format_func=lambda v: t("mode_" + v.replace("-", "_")), key="w_mode")
+        st.caption(t("mode_" + _prev_mode.replace("-", "_") + "_d"))
 
-    # ── détecteur ──────────────────────────────────────────────────────
-    _modes = ["modele", "one-class", "supervise"]
-    _prev = st.session_state.mode
-    st.session_state.mode = st.radio(
-        t("sb_det"), _modes,
-        index=_modes.index(_prev),
-        format_func=lambda v: t("mode_" + v.replace("-", "_")))
+        # ── seuil : auparavant enfoui dans l'onglet Démonstration ──────
+        _fpr_choisi = st.slider(t("sb_thr"), 0.5, 20.0,
+                                float(st.session_state.get("last_fpr", 5.0)),
+                                0.5, help=t("sb_thr_help"), format="%.1f %%",
+                                key="w_fpr")
+
+        _applique = st.form_submit_button(t("sb_apply"), width='stretch')
+
+    if _applique:
+        _change = False
+        # Le budget de fausses alertes est mémorisé : sans ça, il revenait à
+        # 5 % à chaque rechargement et toute la page se recalculait sur une
+        # valeur que l'utilisateur n'avait pas choisie.
+        st.session_state.last_fpr = float(_fpr_choisi)
+        if _lang_choisi != LANG:
+            st.session_state.lang = _lang_choisi
+            _change = True
+        if _mode_choisi != _prev_mode:
+            st.session_state.mode = _mode_choisi
+            # analysis_data() est mis en cache sans connaître le mode : on purge
+            # sinon la démonstration afficherait les scores de l'autre approche.
+            st.cache_data.clear()
+            _change = True
+        if _change:
+            st.rerun()
+
     MODE = st.session_state.mode
-    if MODE != _prev:
-        # analysis_data() est mis en cache sans connaître le mode : on purge
-        # sinon la démonstration afficherait les scores de l'autre approche.
-        st.cache_data.clear()
-        st.rerun()
-    st.caption(t("mode_" + MODE.replace("-", "_") + "_d"))
+    target_fpr = float(st.session_state.get("last_fpr", 5.0)) / 100.0
+    thr = threshold_for_fpr(target_fpr)
 
     # Le détecteur réellement exécuté doit être visible, jamais implicite.
     # Sans cet avertissement, une app qui n'a pas pu charger le gradient
@@ -1772,26 +2324,184 @@ with st.sidebar:
             icon="⚠️")
 
     st.divider()
-
-    # ── seuil : auparavant enfoui dans l'onglet Démonstration ───────────
-    target_fpr = st.slider(t("sb_thr"), 0.5, 20.0, 5.0, 0.5,
-                           help=t("sb_thr_help"), format="%.1f %%") / 100.0
-    st.session_state.last_fpr = float(target_fpr * 100.0)
-    thr = threshold_for_fpr(target_fpr)
-
-    st.divider()
     if st.button(t("sb_reset"), width='stretch'):
         for k in ("last_scores", "last_viol", "last_energy", "last_conf",
                   "last_emb", "last_true", "last_batch",
                   "lv_on", "lv_skip", "lv_n", "lv_a", "lv_rows"):
             st.session_state.pop(k, None)
         st.session_state.history = []
+        st.session_state.pc_step = 1
         _hp = os.path.join(ROOT, "data", "history_livre.csv")
         if os.path.exists(_hp):
             os.remove(_hp)
         st.rerun()
 
     st.caption(t("sb_about"))
+
+ETAPES = 7
+PC_KEYS = ["pc1", "pc2", "pc3", "pc4", "pc5", "pc6", "pc7"]
+
+
+def etape_ouverte(n: int) -> bool:
+    """Une étape n'est ouverte que si la mesure qu'elle demande existe vraiment.
+
+    Ce n'est pas une récompense : c'est l'état des données. Sans scores en
+    mémoire, l'étape « Lire le résultat » n'a rien à montrer — l'ouvrir
+    reviendrait à afficher du vide en laissant croire que c'est calculé.
+    """
+    a_scores = st.session_state.get("last_scores") is not None
+    a_batch = st.session_state.get("last_batch") is not None
+    return {1: True, 2: True, 3: a_scores, 4: a_scores,
+            5: a_batch, 6: a_scores, 7: a_scores}.get(n, False)
+
+
+def relancer_analyse() -> bool:
+    """Recalcule les scores du dernier lot chargé, sans changer les données.
+
+    Le calcul est déterministe : refaire l'analyse redonne les mêmes nombres.
+    C'est le but — vérifier que rien n'a bougé — et non produire un résultat
+    différent pour faire bonne figure. Renvoie False quand aucun lot n'est en
+    mémoire : il n'y a alors rien à refaire, et on le dit au lieu de simuler.
+    """
+    Xs = st.session_state.get("last_batch")
+    if Xs is None:
+        return False
+    sc, vi, en, cf = infer(Xs)
+    st.session_state.last_scores = sc
+    st.session_state.last_viol = vi
+    st.session_state.last_energy = en
+    st.session_state.last_conf = cf
+    try:
+        with torch.no_grad():
+            st.session_state.last_emb = model(torch.FloatTensor(Xs))["z"].numpy()[:, :2]
+    except Exception:
+        st.session_state.last_emb = np.zeros((len(sc), 2))
+    nb = int((sc > thr).sum())
+    st.session_state.history.append({
+        "time": datetime.datetime.now().strftime("%H:%M:%S"),
+        "alerts": f"{nb}/{len(sc)}",
+        "verdict": "THREAT" if nb > 0 else "OK",
+        "score": f"{float(sc[sc > thr].mean()) if nb else 0:.2f}",
+    })
+    return True
+
+
+def parcours() -> int:
+    """Chemin cliquable des sept étapes. Retourne l'étape affichée.
+
+    Chaque nœud est un bouton Streamlit — donc au clavier, annoncé, activable
+    par Entrée. Un nœud verrouillé reste cliquable : il ouvre un encart qui
+    dit CE QUI MANQUE et propose d'y aller. Aucun clic ne produit une page
+    blanche.
+    """
+    courante = int(st.session_state.get("pc_step", 1))
+    libelles = PC_KEYS
+
+    st.markdown(f'<p class="pc-path-h" lang="{LANG}">{t("u_parcours")}</p>',
+                unsafe_allow_html=True)
+    st.markdown(f'<p class="pc-path-l" lang="{LANG}">{t("pc_path_c")}</p>',
+                unsafe_allow_html=True)
+
+    # Progression réelle : le nombre d'étapes que les données autorisent,
+    # pas un score inventé. C'est la seule « récompense » du parcours.
+    _n_ouvertes = sum(1 for k in range(1, ETAPES + 1) if etape_ouverte(k))
+    st.markdown(
+        f'<div class="pc-prog" lang="{LANG}">'
+        f'<div class="pc-prog-l">{t("pc_prog")} · {_n_ouvertes}/{ETAPES}</div>'
+        f'<div class="pc-prog-b" role="img" aria-label="{_n_ouvertes} / {ETAPES}">'
+        f'<span style="width:{100*_n_ouvertes/ETAPES:.0f}%"></span></div></div>',
+        unsafe_allow_html=True)
+
+    # Un nœud par ligne, alternativement à gauche et à droite, avec son nom
+    # et son statut à côté : c'est la disposition de la maquette. Chaque nœud
+    # reste un VRAI bouton (Tab, Entrée, annoncé) ; le trait qui les relie est
+    # décoratif — aria-hidden, il ne reçoit aucun clic.
+    for i, cle in enumerate(libelles, start=1):
+        ouverte = etape_ouverte(i)
+        # Quatre états distincts : afficher ✓ sur une étape jamais ouverte
+        # serait un mensonge.
+        if not ouverte:
+            etat, marque = "lock", "🔒"
+        elif i == courante:
+            etat, marque = "cur", "●"
+        elif i < courante:
+            etat, marque = "done", "✓"
+        else:
+            etat, marque = "open", "○"
+
+        # Statut écrit en toutes lettres : c'est la couleur qui décore,
+        # jamais elle qui informe.
+        if not ouverte:
+            _mot = t("pc_locked")
+            _det = t("pc_after", n=i - 1) if i > 1 else ""
+            statut = f"{_mot} · {_det}" if _det else _mot
+        elif i == courante:
+            statut = t("pc_now")
+        else:
+            statut = t("pc_open")
+
+        aide = f"{t(cle)} — {statut}"
+        gauche = (i % 2 == 1)
+        _c_node, _c_txt = st.columns([1, 2.05], gap="small")
+        _col_node = _c_node if gauche else _c_txt
+        _col_txt = _c_txt if gauche else _c_node
+
+        with _col_node:
+            if st.button(f"{i} {marque}", key=f"pcb_{etat}_{i}", help=aide):
+                st.session_state.pc_step = i
+                st.rerun()
+
+        with _col_txt:
+            badge = (f'<span class="pc-badge pc-badge-{etat}">{t("pc_now")}</span>'
+                     if i == courante else "")
+            align = "left" if gauche else "right"
+            st.markdown(
+                f'<div class="pc-txt" style="text-align:{align}" lang="{LANG}">'
+                f'<div class="pc-name">{_html.escape(f"{i} · {t(cle)}")}</div>'
+                f'<div class="pc-sub">{_html.escape(t("pc_d" + str(i)))} · '
+                f'{_html.escape(statut)}</div>{badge}</div>',
+                unsafe_allow_html=True)
+
+        # Le trait pointillé qui descend vers l'étape suivante : décoratif.
+        if i < len(libelles):
+            _sl = "right" if gauche else "left"
+            st.markdown(
+                f'<div class="pc-link pc-link-{_sl} pc-link-{etat}" '
+                f'aria-hidden="true"></div>', unsafe_allow_html=True)
+
+    st.markdown(
+        f'<div class="pc-legend" lang="{LANG}">'
+        f'<span><b aria-hidden="true">✓</b> {t("pc_done")}</span>'
+        f'<span><b aria-hidden="true">●</b> {t("pc_now")}</span>'
+        f'<span><b aria-hidden="true">🔒</b> {t("pc_locked")}</span>'
+        f'<span class="pc-legend-n">{t("pc_legend")}</span></div>',
+        unsafe_allow_html=True)
+
+    # L'étape affichée est annoncée : un lecteur d'écran n'entend pas le style.
+    st.markdown(
+        f'<p class="sr-only" role="status" lang="{LANG}">{t("pc_cur")} : '
+        f'{courante} · {_html.escape(t(libelles[courante - 1]))}</p>',
+        unsafe_allow_html=True)
+
+    # Ce que fait un cadenas, écrit une fois pour toutes sous le parcours :
+    # le lecteur n'a pas à cliquer pour l'apprendre.
+    st.markdown(
+        f'<div class="u-lock" lang="{LANG}">'
+        f'<div class="u-lock-h">{t("u_lock_h")}</div>'
+        f'<div class="u-lock-b">{_md_html(t("u_lock_b"))}</div>'
+        f'<div class="u-lock-g">{t("u_gate")}</div></div>',
+        unsafe_allow_html=True)
+
+    if not etape_ouverte(courante):
+        # Un cadenas explique au lieu de refuser.
+        manque = t("pc_missing") if courante in (3, 4, 6, 7) else t("pc_missing_b")
+        st.warning(manque)
+        if st.button(t("pc_go1"), key="pc_go1"):
+            st.session_state.pc_step = 1
+            st.rerun()
+
+    return courante
+
 
 st.write("")
 
@@ -1804,15 +2514,16 @@ tab_o, tab_d, tab_r, tab_m, tab_l, tab_h = st.tabs([
 #  1 · OVERVIEW
 # ══════════════════════════════════════════════════════════════════════
 with tab_o:
+    st.markdown(f'<h2 class="tab-h">{t("tab_over")}</h2>', unsafe_allow_html=True)
     c1, c2 = st.columns([1.15, 0.85])
     with c1:
-        st.markdown(f"#### {t('o_problem_h')}")
+        st.markdown(f"### {t('o_problem_h')}")
         st.markdown(t("o_problem"))
-        st.markdown(f"#### {t('o_approach_h')}")
+        st.markdown(f"### {t('o_approach_h')}")
         st.markdown(t("o_approach"))
     with c2:
         st.markdown(
-            f'<div class="pitch">'
+            f'<div class="pitch" lang="{LANG}">'
             f'<div style="font-size:0.72em;color:var(--fg-4);text-transform:uppercase;'
             f'letter-spacing:0.09em;">{t("o_dataset")}</div>'
             f'<div style="font-weight:700;font-size:1.05em;margin-bottom:12px;">{t("o_dataset_v")}</div>'
@@ -1833,592 +2544,803 @@ with tab_o:
         g = om["global"]
         k1, k2, k3, k4 = st.columns(4)
         _na, _nb = _val(g, "n_anomaly"), _val(g, "n_benign")
-        k1.markdown(f'<div class="kpi"><div class="kpi-l">AUROC</div>'
+        k1.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">AUROC</div>'
                     f'<div class="kpi-v">{_num(g, "auroc")}</div>'
                     f'<div class="kpi-s">IC95 % {_ci(g)}</div></div>',
                     unsafe_allow_html=True)
-        k2.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_fpr")}</div>'
+        k2.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("r_fpr")}</div>'
                     f'<div class="kpi-v">{_pct(g, "fpr")}</div>'
                     f'<div class="kpi-s">cible ≤ 10 %</div></div>', unsafe_allow_html=True)
-        k3.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_recall")}</div>'
+        k3.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("r_recall")}</div>'
                     f'<div class="kpi-v">{_pct(g, "tpr_recall")}</div>'
                     f'<div class="kpi-s">{g.get("threshold_method") or t("missing")}</div></div>',
                     unsafe_allow_html=True)
-        k4.markdown(f'<div class="kpi"><div class="kpi-l">n</div>'
+        k4.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">n</div>'
                     f'<div class="kpi-v">{f"{int(_na):,}" if _na is not None else t("missing")}</div>'
                     f'<div class="kpi-s">Zero-Day / '
                     f'{f"{int(_nb):,}" if _nb is not None else t("missing")}</div></div>',
                     unsafe_allow_html=True)
 
     st.write("")
-    st.markdown(f"""<div class="panel panel-accent">{t("o_honest")}</div>""",
-                unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="panel panel-accent" lang="{LANG}">{_md_html(t("o_honest"))}</div>',
+        unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════
 #  2 · LIVE DEMO
 # ══════════════════════════════════════════════════════════════════════
 with tab_d:
-    st.markdown(f"#### {t('d_s1')}")
-    st.caption(t("d_s1_c"))
-    mode = st.segmented_control(t("d_mode"), [t("d_live"), t("d_file")],
-                                default=t("d_live")) or t("d_live")
+    st.markdown(f'<h2 class="tab-h">{t("tab_demo")}</h2>', unsafe_allow_html=True)
+    # Le chemin retourne l'étape affichée ; chaque région de cet onglet est
+    # ensuite gardée par `_pc` : une étape verrouillée ne montre jamais du vide.
+    # Deux colonnes comme sur la maquette : le chemin à gauche, le contenu
+    # de l'étape à droite. Sur mobile, Streamlit les empile : le chemin passe
+    # au-dessus du contenu, ce qui reste l'ordre de lecture correct.
+    # ════════════════════════════════════════════════════════════════════
+    #  EN-TÊTE D'UNITÉ — ce que fait cette page, et où l'on en est
+    #  Les pastilles ne sont pas une récompense : elles comptent les étapes
+    #  que les données autorisent réellement.
+    # ════════════════════════════════════════════════════════════════════
+    _n_dispo = sum(1 for k in range(1, ETAPES + 1) if etape_ouverte(k))
+    _dots = "".join(f'<span class="u-dot{" u-on" if k <= _n_dispo else ""}"></span>'
+                    for k in range(1, ETAPES + 1))
+    _uni, _guid = st.columns([5.2, 1], gap="small", vertical_alignment="center")
+    with _uni:
+        st.markdown(
+            f'<div class="unit" lang="{LANG}">'
+            f'<div class="unit-t">{_html.escape(t("u_title"))}</div>'
+            f'<div class="unit-s">{_md_html(t("u_sub"))}</div>'
+            f'<div class="unit-p"><span class="unit-pl">{t("u_prog")}</span>'
+            f'<span class="unit-dots" aria-hidden="true">{_dots}</span>'
+            f'<span class="unit-pn">{t("u_prog_n", n=_n_dispo, m=ETAPES)}</span></div>'
+            f'</div>', unsafe_allow_html=True)
+    with _guid:
+        with st.popover(t("u_guide")):
+            st.markdown(t("u_guide_b"))
+    st.write("")
 
-    if "history" not in st.session_state:
-        st.session_state.history = []
+    _pc_col, _body_col = st.columns([1.05, 3.0], gap="large")
+    with _pc_col:
+        # Marqueur invisible : il sert uniquement au CSS à reconnaître cette
+        # colonne et à lui donner l'allure de carte de la maquette.
+        st.markdown('<div class="pc-mark" aria-hidden="true"></div>',
+                    unsafe_allow_html=True)
+        _pc = parcours()
+    with _body_col:
+        st.markdown('<div class="pc-mark" aria-hidden="true"></div>',
+                    unsafe_allow_html=True)
+        # L'en-tête annonce où l'on est, puis le titre de l'étape : c'est le
+        # bandeau de la maquette (« ÉTAPE 3 · EN COURS »).
+        _mots = {True: t("pc_now"), False: t("pc_locked")}
+        st.markdown(
+            f'<div class="pc-panel-h" lang="{LANG}">{t("pc_etape")} {_pc} · '
+            f'{_mots[etape_ouverte(_pc)]}</div>', unsafe_allow_html=True)
+        st.markdown(f"### {t(PC_KEYS[_pc - 1])}")
+        # Une phrase dit ce qu'on fait dans cette étape, avant tout chiffre.
+        st.markdown(
+            f'<p class="pc-do" lang="{LANG}">{t("pc_do" + str(_pc))}</p>',
+            unsafe_allow_html=True)
 
-    @st.cache_data(show_spinner=False)
-    def test_pool():
-        try:
-            Xt = np.load(os.path.join(ROOT, "data", "processed", "X_test.npy"))
-            yt = np.load(os.path.join(ROOT, "data", "processed", "y_test.npy"),
-                         allow_pickle=True)
-            ben = np.array(["BENIGN" in str(l).upper() for l in yt])
-            return Xt[ben], Xt[~ben], [str(v) for v in yt[~ben]]
-        except Exception:
-            return None, None, None
+        # Avancer ou reculer d'un bouton, sans devoir viser un nœud du chemin.
+        # Le bouton reste désactivé quand l'étape suivante n'a pas de résultat,
+        # et la raison est écrite sous lui : rien ne se bloque en silence.
+        _suivante = _pc + 1
+        _peut_avancer = _suivante <= ETAPES and etape_ouverte(_suivante)
+        _nav_p, _nav_n = st.columns(2)
+        with _nav_p:
+            if st.button(t("pc_prev"), key="pc_nav_prev", width="stretch",
+                         disabled=(_pc <= 1)):
+                st.session_state.pc_step = max(1, _pc - 1)
+                st.rerun()
+        with _nav_n:
+            if st.button(t("pc_next"), key="pc_nav_next", width="stretch",
+                         disabled=not _peut_avancer):
+                st.session_state.pc_step = min(ETAPES, _suivante)
+                st.rerun()
+        if _pc < ETAPES and not _peut_avancer:
+            st.caption(t("pc_next_why"))
+        if _pc <= 2:
+            st.caption(t("d_s1_c"))
+            mode = st.segmented_control(t("d_mode"), [t("d_live"), t("d_file")],
+                                        default=t("d_live")) or t("d_live")
 
+            if "history" not in st.session_state:
+                st.session_state.history = []
 
-    def sample_flux(n=200):
-        B, Z, ZL = test_pool()
-        if B is not None and len(B):
-            rng = np.random.default_rng()
-            k = int(rng.integers(6, 16))
-            k = min(k, len(Z), n)
-            ib = rng.choice(len(B), n - k, replace=False)
-            iz = rng.choice(len(Z), k, replace=False)
-            X = np.vstack([B[ib], Z[iz]])
-            lab = ["BENIGN"] * (n - k) + [ZL[i] for i in iz]
-            o = rng.permutation(n)
-            return X[o], [lab[i] for i in o], True
-        rng = np.random.default_rng()
-        X = rng.normal(0, 1, (n, scaler.n_features_in_)) * 0.55
-        X[rng.choice(n, max(1, n // 12), replace=False)] += rng.uniform(1.5, 2.5)
-        return scaler.transform(X), ["SIM"] * n, False
-
-
-    def run_demo(Xs, labels, from_test):
-        st.session_state.last_batch = Xs
-        sc, vi, en, cf = infer(Xs)
-        st.session_state.last_scores = sc
-        st.session_state.last_viol = vi
-        st.session_state.last_energy = en
-        st.session_state.last_conf = cf
-        st.session_state.last_true = labels if from_test else None
-        with torch.no_grad():
-            st.session_state.last_emb = model(torch.FloatTensor(Xs))["z"].numpy()[:, :2]
-        nb = int((sc > thr).sum())
-        st.session_state.history.append({
-            "time": datetime.datetime.now().strftime("%H:%M:%S"),
-            "alerts": f"{nb}/{len(sc)}",
-            "verdict": "THREAT" if nb > 0 else "OK",
-            "score": f"{float(sc[sc > thr].mean()) if nb else 0:.2f}",
-        })
-        pd.DataFrame(st.session_state.history).to_csv(
-            os.path.join(ROOT, "data", "history_livre.csv"), index=False)
-
-
-    if mode == t("d_live"):
-        if st.button(t("d_generate"), type="primary", width='stretch'):
-            Xs, labs, ft = sample_flux(200)
-            run_demo(Xs, labs, ft)
-    else:
-        up = st.file_uploader(t("d_upload"), type=["csv", "parquet"])
-        if up and st.button(t("d_generate"), type="primary", width='stretch'):
-            df = pd.read_csv(up) if up.name.endswith(".csv") else pd.read_parquet(up)
-            # Plafond de sécurité : au-delà, l'inférence CPU fige le navigateur.
-            # On tire un ÉCHANTILLON ALÉATOIRE et non les premières lignes :
-            # df.iloc[:50000] suit l'ordre du fichier, donc un parquet trié
-            # (ex. « BENIGN d'abord ») ne serait analysé que sur une classe et
-            # afficherait 0 % d'alertes — un faux diagnostic.
-            def _n(x):
-                # séparateur de milliers conforme à la langue de l'interface :
-                # espace insécable en français, virgule en anglais.
-                return f"{x:,}".replace(",", " ") if LANG == "fr" else f"{x:,}"
-
-            if len(df) > 50_000:
-                st.warning(
-                    f"{_n(len(df))} lignes — échantillon aléatoire de 50 000 analysé "
-                    f"({_n(len(df) - 50_000)} non vues).")
-                df = df.sample(n=50_000, random_state=0).reset_index(drop=True)
-
-            df, _labs_up, _col_lab = extraire_etiquettes(df)
-            if _col_lab is not None:
-                st.caption(t("lab_found", c=_col_lab))
-
-            X = df.select_dtypes(include=[np.number]).values
-            nf = scaler.n_features_in_
-
-            # Garde-fou de format : le modèle attend nf colonnes DANS UN ORDRE
-            # PRÉCIS. Un fichier brut CICIDS en contient 78 (features + Label),
-            # pas 102 : compléter avec des zéros produirait des scores qui ne
-            # veulent rien dire. Mieux vaut refuser que tromper.
-            # Cas fréquent : le fichier ne contient que le bloc réseau (77
-            # colonnes), comme un parquet CICIDS d'origine. La branche système
-            # n'a jamais été collectée — le pipeline la dérive du trafic. On
-            # rejoue donc ce calcul au lieu de refuser ou de mettre des zéros.
-            _reconstruit = False
-            if X.shape[1] == N_NET and nf == N_NET + N_SYS:
-                _mu = _sd = None
+            @st.cache_data(show_spinner=False)
+            def test_pool():
                 try:
-                    _st = np.load(os.path.join(ROOT, "models", "supervised_hgb.npz"))
-                    _mu, _sd = _st["mu"], _st["sd"]
+                    Xt = np.load(os.path.join(ROOT, "data", "processed", "X_test.npy"))
+                    yt = np.load(os.path.join(ROOT, "data", "processed", "y_test.npy"),
+                                 allow_pickle=True)
+                    ben = np.array(["BENIGN" in str(l).upper() for l in yt])
+                    return Xt[ben], Xt[~ben], [str(v) for v in yt[~ben]]
                 except Exception:
-                    pass
-                _part = ordre_colonnes_suspect(X, _mu, _sd) if _mu is not None else 0.0
-                if _part > 0.25:
-                    st.error(
-                        f"**Ordre des colonnes incohérent** — {_part*100:.0f} % des "
-                        f"colonnes ont une moyenne très éloignée de celle vue à "
-                        f"l'entraînement. Le fichier contient bien 77 colonnes, "
-                        f"mais probablement pas les mêmes, ou pas dans le même "
-                        f"ordre. Les scores n'auraient aucun sens.\n\n"
-                        f"Téléverse `data/processed/demo_sample.csv`, produit par "
-                        f"l'étape 01 : c'est le seul fichier dont l'ordre est garanti.")
-                    st.stop()
-                st.info(
-                    f"**Branche système reconstruite** — le fichier contient les "
-                    f"{N_NET} colonnes réseau mais pas les {N_SYS} colonnes "
-                    f"système, qui ne sont jamais collectées : le pipeline les "
-                    f"dérive du trafic. Ce calcul est rejoué ici (`proxy_edr`). "
-                    f"Les scores sont exploitables qualitativement, mais ne se "
-                    f"comparent pas au chiffre exact du mémoire, car les "
-                    f"percentiles sont recalculés sur ce lot.")
-                X = np.hstack([X, proxy_edr_like(X)])
-                _reconstruit = True
-
-            if X.shape[1] != nf:
-                st.error(
-                    f"**Format incompatible** — le fichier fournit "
-                    f"{X.shape[1]} colonnes numériques, le modèle en attend {nf} "
-                    f"({N_NET} réseau + {N_SYS} système). Les scores seraient "
-                    f"dépourvus de sens.\n\n"
-                    f"Un fichier de **{N_NET} colonnes réseau seules** est accepté : "
-                    f"la branche système est alors reconstruite. Tout autre nombre "
-                    f"de colonnes ne peut pas l'être.")
-                with st.expander("Comment obtenir un fichier compatible"):
-                    st.markdown(
-                        "**Le plus simple** — le pipeline produit déjà un fichier "
-                        "prêt à téléverser :\n\n"
-                        "`data/processed/demo_sample.csv` — 20 000 flux, "
-                        f"{nf} colonnes brutes + une colonne `label`.\n\n"
-                        "S'il n'existe pas encore, relance :\n\n"
-                        "```powershell\n"
-                        "py 01_data_preparation.py\n"
-                        "```\n\n"
-                        "**Pour un autre fichier**, il doit contenir les "
-                        f"{nf} colonnes brutes dans le même ordre que "
-                        "`X_train.npy`, sans standardisation appliquée :\n\n"
-                        "```python\n"
-                        "import numpy as np, pandas as pd, pickle\n"
-                        "X = np.load('data/processed/X_test.npy')\n"
-                        "y = np.load('data/processed/y_test.npy', allow_pickle=True)\n"
-                        "sc = pickle.load(open('models/scaler.pkl', 'rb'))\n"
-                        "Xraw = X * sc.scale_ + sc.mean_   # inverse la standardisation\n"
-                        f"df = pd.DataFrame(Xraw, columns=[f'feat_{{i}}' "
-                        f"for i in range(Xraw.shape[1])])\n"
-                        "df['label'] = y\n"
-                        "df.to_csv('demo_sample.csv', index=False)\n"
-                        "```\n\n"
-                        f"Un fichier de **{N_NET} colonnes réseau seules** est "
-                        f"accepté : la branche système est reconstruite à partir "
-                        f"du trafic, comme à l'entraînement. Au-delà de {N_NET} "
-                        f"colonnes sans atteindre {nf}, l'ordre ne peut pas être "
-                        f"vérifié et l'analyse est refusée plutôt que faussée.")
-                st.stop()
-
-            X = scaler.transform(X[:, :nf])
-            run_demo(X, _labs_up, _labs_up is not None)
-
-    # ════════════════════════════════════════════════════════════════════
-    #  RÉSULTAT DE L'ANALYSE — remonté juste après la source
-    #  C'est ce que l'utilisateur vient chercher : il ne doit pas avoir à
-    #  faire défiler la trace, le rejeu et le direct pour le trouver.
-    # ════════════════════════════════════════════════════════════════════
-    st.divider()
-    st.markdown(f"#### {t('d_s2')}")
-
-    scores = st.session_state.get("last_scores")
-    if scores is None:
-        st.info(t("d_no_data"))
-    else:
-        scores = np.asarray(scores)
-        violation = np.asarray(st.session_state.get("last_viol", np.zeros(len(scores))))
-        energy = np.asarray(st.session_state.get("last_energy", np.zeros(len(scores))))
-        conf = np.asarray(st.session_state.get("last_conf", np.ones(len(scores))))
-        emb = np.asarray(st.session_state.get("last_emb",
-                                              np.random.randn(len(scores), 2) * 0.01))
-
-        nb_total = len(scores)
-        mask = scores > thr
-        nb_alert = int(mask.sum())
-        pct = 100.0 * nb_alert / max(nb_total, 1)
-
-        k1, k2, k3, k4 = st.columns(4)
-        k1.markdown(f'<div class="kpi"><div class="kpi-l">{t("d_flows")}</div>'
-                    f'<div class="kpi-v">{nb_total:,}</div></div>', unsafe_allow_html=True)
-        k2.markdown(f'<div class="kpi"><div class="kpi-l">{t("d_alerts")}</div>'
-                    f'<div class="kpi-v" style="color:{"var(--danger)" if nb_alert else "var(--ok)"}">'
-                    f'{nb_alert:,}</div><div class="kpi-s">{pct:.1f} {t("d_detected")}</div></div>',
-                    unsafe_allow_html=True)
-        k3.markdown(f'<div class="kpi"><div class="kpi-l">{t("d_normal")}</div>'
-                    f'<div class="kpi-v" style="color:var(--ok)">{nb_total - nb_alert:,}</div>'
-                    f'<div class="kpi-s">{t("d_below")}</div></div>', unsafe_allow_html=True)
-        k4.markdown(f'<div class="kpi"><div class="kpi-l">{t("d_verdict")}</div>'
-                    f'<div class="kpi-v" style="color:{"var(--danger)" if nb_alert else "var(--ok)"}">'
-                    f'{t("d_threat") if nb_alert else t("d_clean")}</div>'
-                    f'<div class="kpi-s">{t("d_threat_sub") if nb_alert else t("d_clean_sub")}</div></div>',
-                    unsafe_allow_html=True)
-
-        # labelled batch: real precision / recall
-        tl = st.session_state.get("last_true")
-        if tl is not None and len(tl) == nb_total:
-            tb = np.array(["BENIGN" in str(l).upper() for l in tl])
-            tp = int((mask & ~tb).sum()); fp = int((mask & tb).sum())
-            m1, m2, m3 = st.columns(3)
-            m1.metric("True positives", tp,
-                      f"{tp / max(int((~tb).sum()), 1):.1%} recall")
-            m2.metric("False positives", fp,
-                      f"{fp / max(int(tb.sum()), 1):.1%} FPR", delta_color="inverse")
-            m3.metric("Zero-Day in batch", int((~tb).sum()))
-
-        st.write("")
-        left, right = st.columns([1.15, 0.85])
-        with left:
-            st.markdown(f"**{t('d_suspect_h')}**")
-            st.caption(t("d_suspect_c"))
-            smax = float(scores.max()) + 1e-9
-            for i in np.argsort(scores)[::-1][:10]:
-                sv = float(scores[i]); bad = sv > thr
-                w = min(100.0, 100.0 * sv / smax)
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;'
-                    f'margin-bottom:3px;border-radius:8px;'
-                    f'background:{"#1b0d0d" if bad else "#08190f"};'
-                    f'border-left:3px solid {"var(--danger)" if bad else "var(--ok)"};font-size:0.9rem;">'
-                    f'<div style="min-width:96px;color:var(--fg-3);">{t("d_flow_n")} #{int(i)+1}</div>'
-                    f'<div style="flex:1;background:var(--border);height:7px;border-radius:10px;overflow:hidden;">'
-                    f'<div style="width:{w:.0f}%;height:100%;background:{"var(--danger)" if bad else "var(--ok)"};"></div></div>'
-                    f'<div style="min-width:126px;text-align:right;color:{"var(--danger)" if bad else "var(--ok)"};">'
-                    f'{"ALERT" if bad else "normal"} · {sv:.2f}</div></div>', unsafe_allow_html=True)
-        with right:
-            st.markdown(f"**{t('d_dist_h')}**")
-            st.bar_chart(pd.DataFrame({
-                "cat": ["Normal", "Alert"],
-                "n": [nb_total - nb_alert, nb_alert]}).set_index("cat"),
-                height=230, color="#7ab4f7")
-            st.caption(f"threshold = {thr:.3f}")
-
-        st.write("")
-        st.markdown(f"**{t('d_charts_h')}**")
-        n_plot = 1200
-        idx = (np.linspace(0, nb_total - 1, n_plot).astype(int)
-               if nb_total > n_plot else np.arange(nb_total))
-        st.caption(t("d_advice", n=f"{nb_total:,}", m=f"{len(idx):,}"))
-
-        a, b = st.columns(2)
-        with a:
-            st.markdown(f"**{t('c_score')}**")
-            st.line_chart(pd.DataFrame({"score": scores[idx],
-                                        "threshold": np.full(len(idx), thr)}), height=200)
-            st.markdown(f"**{t('c_conf')}**")
-            st.line_chart(pd.DataFrame({"conf": conf[idx]}), height=170)
-        with b:
-            st.markdown(f"**{t('c_viol')}**")
-            top = np.argsort(violation)[::-1][:8]
-            st.bar_chart(pd.DataFrame({"flow": [f"F{i}" for i in top],
-                                       "violation": violation[top]}).set_index("flow"), height=200)
-            st.markdown(f"**{t('c_energy')}**")
-            st.line_chart(pd.DataFrame({"energy": energy[idx]}), height=170)
-
-        st.markdown(f"**{t('c_map')}**")
-        st.scatter_chart(pd.DataFrame({
-            "x": emb[idx, 0], "y": emb[idx, 1],
-            "class": np.where(scores[idx] > thr, "flagged", "normal")}),
-            x="x", y="y", color="class", height=260)
-
-    st.divider()
-    st.markdown("**Registry**")
-    if st.session_state.get("history"):
-        dfh = pd.DataFrame(st.session_state.history)
-        st.dataframe(dfh, width='stretch', height=140)
-        st.download_button("CSV", dfh.to_csv(index=False).encode(),
-                           "registry.csv", width='stretch')
+                    return None, None, None
 
 
-    # ════════════════════════════════════════════════════════════════════
-    #  TRACE D'UN FLUX — le trajet complet d'une décision
-    #  Pédagogie pure : rien n'est recalculé, on déroule ce qui a déjà été
-    #  calculé sur le lot. Aucun réglage ici n'influence la détection.
-    # ════════════════════════════════════════════════════════════════════
-    if "last_scores" in st.session_state:
+            def sample_flux(n=200):
+                B, Z, ZL = test_pool()
+                if B is not None and len(B):
+                    rng = np.random.default_rng()
+                    k = int(rng.integers(6, 16))
+                    k = min(k, len(Z), n)
+                    ib = rng.choice(len(B), n - k, replace=False)
+                    iz = rng.choice(len(Z), k, replace=False)
+                    X = np.vstack([B[ib], Z[iz]])
+                    lab = ["BENIGN"] * (n - k) + [ZL[i] for i in iz]
+                    o = rng.permutation(n)
+                    return X[o], [lab[i] for i in o], True
+                rng = np.random.default_rng()
+                X = rng.normal(0, 1, (n, scaler.n_features_in_)) * 0.55
+                X[rng.choice(n, max(1, n // 12), replace=False)] += rng.uniform(1.5, 2.5)
+                return scaler.transform(X), ["SIM"] * n, False
+
+
+            def run_demo(Xs, labels, from_test):
+                st.session_state.last_batch = Xs
+                # L'utilisateur vient de franchir l'étape 1 : le repère doit le dire.
+                st.session_state.pc_step = 3
+                sc, vi, en, cf = infer(Xs)
+                st.session_state.last_scores = sc
+                st.session_state.last_viol = vi
+                st.session_state.last_energy = en
+                st.session_state.last_conf = cf
+                st.session_state.last_true = labels if from_test else None
+                with torch.no_grad():
+                    st.session_state.last_emb = model(torch.FloatTensor(Xs))["z"].numpy()[:, :2]
+                nb = int((sc > thr).sum())
+                st.session_state.history.append({
+                    "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                    "alerts": f"{nb}/{len(sc)}",
+                    "verdict": "THREAT" if nb > 0 else "OK",
+                    "score": f"{float(sc[sc > thr].mean()) if nb else 0:.2f}",
+                })
+                pd.DataFrame(st.session_state.history).to_csv(
+                    os.path.join(ROOT, "data", "history_livre.csv"), index=False)
+                # Le chemin a été dessiné avant l'analyse, avec l'état d'avant : on
+                # redessine pour que l'étape 3 apparaisse ouverte dans le même geste.
+                st.rerun()
+
+
+            if mode == t("d_live"):
+                if st.button(t("d_generate"), type="primary", width='stretch'):
+                    Xs, labs, ft = sample_flux(200)
+                    run_demo(Xs, labs, ft)
+            else:
+                up = st.file_uploader(t("d_upload"), type=["csv", "parquet"])
+                if up and st.button(t("d_generate"), type="primary", width='stretch'):
+                    df = pd.read_csv(up) if up.name.endswith(".csv") else pd.read_parquet(up)
+                    # Plafond de sécurité : au-delà, l'inférence CPU fige le navigateur.
+                    # On tire un ÉCHANTILLON ALÉATOIRE et non les premières lignes :
+                    # df.iloc[:50000] suit l'ordre du fichier, donc un parquet trié
+                    # (ex. « BENIGN d'abord ») ne serait analysé que sur une classe et
+                    # afficherait 0 % d'alertes — un faux diagnostic.
+                    def _n(x):
+                        # séparateur de milliers conforme à la langue de l'interface :
+                        # espace insécable en français, virgule en anglais.
+                        return f"{x:,}".replace(",", " ") if LANG == "fr" else f"{x:,}"
+
+                    if len(df) > 50_000:
+                        st.warning(
+                            f"{_n(len(df))} lignes — échantillon aléatoire de 50 000 analysé "
+                            f"({_n(len(df) - 50_000)} non vues).")
+                        df = df.sample(n=50_000, random_state=0).reset_index(drop=True)
+
+                    df, _labs_up, _col_lab = extraire_etiquettes(df)
+                    if _col_lab is not None:
+                        st.caption(t("lab_found", c=_col_lab))
+
+                    X = df.select_dtypes(include=[np.number]).values
+                    nf = scaler.n_features_in_
+
+                    # Garde-fou de format : le modèle attend nf colonnes DANS UN ORDRE
+                    # PRÉCIS. Un fichier brut CICIDS en contient 78 (features + Label),
+                    # pas 102 : compléter avec des zéros produirait des scores qui ne
+                    # veulent rien dire. Mieux vaut refuser que tromper.
+                    # Cas fréquent : le fichier ne contient que le bloc réseau (77
+                    # colonnes), comme un parquet CICIDS d'origine. La branche système
+                    # n'a jamais été collectée — le pipeline la dérive du trafic. On
+                    # rejoue donc ce calcul au lieu de refuser ou de mettre des zéros.
+                    _reconstruit = False
+                    if X.shape[1] == N_NET and nf == N_NET + N_SYS:
+                        _mu = _sd = None
+                        try:
+                            _st = np.load(os.path.join(ROOT, "models", "supervised_hgb.npz"))
+                            _mu, _sd = _st["mu"], _st["sd"]
+                        except Exception:
+                            pass
+                        _part = ordre_colonnes_suspect(X, _mu, _sd) if _mu is not None else 0.0
+                        if _part > 0.25:
+                            st.error(
+                                f"**Ordre des colonnes incohérent** — {_part*100:.0f} % des "
+                                f"colonnes ont une moyenne très éloignée de celle vue à "
+                                f"l'entraînement. Le fichier contient bien 77 colonnes, "
+                                f"mais probablement pas les mêmes, ou pas dans le même "
+                                f"ordre. Les scores n'auraient aucun sens.\n\n"
+                                f"Téléverse `data/processed/demo_sample.csv`, produit par "
+                                f"l'étape 01 : c'est le seul fichier dont l'ordre est garanti.")
+                            st.stop()
+                        st.info(
+                            f"**Branche système reconstruite** — le fichier contient les "
+                            f"{N_NET} colonnes réseau mais pas les {N_SYS} colonnes "
+                            f"système, qui ne sont jamais collectées : le pipeline les "
+                            f"dérive du trafic. Ce calcul est rejoué ici (`proxy_edr`). "
+                            f"Les scores sont exploitables qualitativement, mais ne se "
+                            f"comparent pas au chiffre exact du mémoire, car les "
+                            f"percentiles sont recalculés sur ce lot.")
+                        X = np.hstack([X, proxy_edr_like(X)])
+                        _reconstruit = True
+
+                    if X.shape[1] != nf:
+                        st.error(
+                            f"**Format incompatible** — le fichier fournit "
+                            f"{X.shape[1]} colonnes numériques, le modèle en attend {nf} "
+                            f"({N_NET} réseau + {N_SYS} système). Les scores seraient "
+                            f"dépourvus de sens.\n\n"
+                            f"Un fichier de **{N_NET} colonnes réseau seules** est accepté : "
+                            f"la branche système est alors reconstruite. Tout autre nombre "
+                            f"de colonnes ne peut pas l'être.")
+                        with st.expander("Comment obtenir un fichier compatible"):
+                            st.markdown(
+                                "**Le plus simple** — le pipeline produit déjà un fichier "
+                                "prêt à téléverser :\n\n"
+                                "`data/processed/demo_sample.csv` — 20 000 flux, "
+                                f"{nf} colonnes brutes + une colonne `label`.\n\n"
+                                "S'il n'existe pas encore, relance :\n\n"
+                                "```powershell\n"
+                                "py 01_data_preparation.py\n"
+                                "```\n\n"
+                                "**Pour un autre fichier**, il doit contenir les "
+                                f"{nf} colonnes brutes dans le même ordre que "
+                                "`X_train.npy`, sans standardisation appliquée :\n\n"
+                                "```python\n"
+                                "import numpy as np, pandas as pd, pickle\n"
+                                "X = np.load('data/processed/X_test.npy')\n"
+                                "y = np.load('data/processed/y_test.npy', allow_pickle=True)\n"
+                                "sc = pickle.load(open('models/scaler.pkl', 'rb'))\n"
+                                "Xraw = X * sc.scale_ + sc.mean_   # inverse la standardisation\n"
+                                f"df = pd.DataFrame(Xraw, columns=[f'feat_{{i}}' "
+                                f"for i in range(Xraw.shape[1])])\n"
+                                "df['label'] = y\n"
+                                "df.to_csv('demo_sample.csv', index=False)\n"
+                                "```\n\n"
+                                f"Un fichier de **{N_NET} colonnes réseau seules** est "
+                                f"accepté : la branche système est reconstruite à partir "
+                                f"du trafic, comme à l'entraînement. Au-delà de {N_NET} "
+                                f"colonnes sans atteindre {nf}, l'ordre ne peut pas être "
+                                f"vérifié et l'analyse est refusée plutôt que faussée.")
+                        st.stop()
+
+                    X = scaler.transform(X[:, :nf])
+                    run_demo(X, _labs_up, _labs_up is not None)
+
+            # ════════════════════════════════════════════════════════════════════
+        #  RÉSULTAT DE L'ANALYSE — remonté juste après la source
+        #  C'est ce que l'utilisateur vient chercher : il ne doit pas avoir à
+        #  faire défiler la trace, le rejeu et le direct pour le trouver.
+        # ════════════════════════════════════════════════════════════════════
         st.divider()
-        st.markdown(f"#### {t('d_s3')}")
-        st.markdown(f"**{t('tr_h')}**")
-        st.caption(t("tr_c"))
 
-        _scp = np.asarray(st.session_state.last_scores, dtype=float)
-        _tru = st.session_state.get("last_true")
-        _al = _scp > thr
-        if _tru is not None and len(_tru) == len(_scp):
-            _atk = np.array(["BENIGN" not in str(x).upper() for x in _tru])
-            _cas = [("tr_cat_hit", _atk & _al), ("tr_cat_miss", _atk & ~_al),
-                    ("tr_cat_fp", ~_atk & _al), ("tr_cat_tn", ~_atk & ~_al)]
+        scores = st.session_state.get("last_scores")
+        if scores is None:
+            st.info(t("d_no_data"))
         else:
-            _atk = None
-            _cas = [("tr_cat_hit", _al), ("tr_cat_tn", ~_al)]
+            scores = np.asarray(scores)
+            violation = np.asarray(st.session_state.get("last_viol", np.zeros(len(scores))))
+            energy = np.asarray(st.session_state.get("last_energy", np.zeros(len(scores))))
+            conf = np.asarray(st.session_state.get("last_conf", np.ones(len(scores))))
+            emb = np.asarray(st.session_state.get("last_emb",
+                                                  np.random.randn(len(scores), 2) * 0.01))
 
-        _dispo = [(k, m) for k, m in _cas if bool(m.any())]
-        if _dispo:
-            _lib = [f"{t(k)} ({int(m.sum())})" for k, m in _dispo]
-            _choix = st.selectbox(t("tr_pick"), _lib, help=t("tr_pick_help"))
-            _k, _m = _dispo[_lib.index(_choix)]
-            _j = int(np.flatnonzero(_m)[0])
-            _v = float(_scp[_j])
+            nb_total = len(scores)
+            mask = scores > thr
+            nb_alert = int(mask.sum())
+            pct = 100.0 * nb_alert / max(nb_total, 1)
 
-            _d1, _d2, _d3 = st.columns(3)
-            _d1.markdown(f'<div class="kpi"><div class="kpi-l">{t("tr_score")}</div>'
-                         f'<div class="kpi-v">{_v:.3g}</div>'
-                         f'<div class="kpi-s">{t("tr_thr")} {thr:.3g}</div></div>',
-                         unsafe_allow_html=True)
-            _d2.markdown(f'<div class="kpi"><div class="kpi-l">{t("tr_verdict")}</div>'
-                         f'<div class="kpi-v">{t("tr_hit") if bool(_al[_j]) else t("tr_quiet")}</div>'
-                         f'<div class="kpi-s">{_v:.3g} {"&gt;" if bool(_al[_j]) else "≤"} {thr:.3g}</div></div>',
-                         unsafe_allow_html=True)
-            _lab_txt = str(_tru[_j]) if (_atk is not None) else t("tr_unknown")
-            _d3.markdown(f'<div class="kpi"><div class="kpi-l">{t("tr_true")}</div>'
-                         f'<div class="kpi-v" style="font-size:1rem;">{_lab_txt}</div>'
-                         f'<div class="kpi-s">#{_j}</div></div>',
-                         unsafe_allow_html=True)
+            if _pc == 3:
+                # Le tableau des trois détecteurs vient AVANT l'interprétation :
+                # on voit d'abord ce que chacun produit sur le même lot, ensuite
+                # ce que ces nombres veulent dire.
+                _cmp3 = compare_three(float(st.session_state.get("last_fpr", 5.0)), LANG)
+                _r3 = []
+                for _r in _cmp3["rows"]:
+                    _rec = _r["recall"]
+                    _r3.append({
+                        t("cmp_col"): _r["mode"],
+                        t("cmp_alerts"): (f'{_r["alerts"]:,} / {_r["n"]:,}'
+                                          if _r["alerts"] is not None else t("n_a")),
+                        t("cmp_recall"): (t("n_a") if _rec is None or _rec != _rec
+                                          else f'{_rec * 100:.1f} %'),
+                    })
+                html_table(pd.DataFrame(_r3), caption=t("u_res_cap"), na=t("n_a"),
+                           key="dl_cmp_e3", file_name="resultat_lot.csv")
 
-            # Les variables les plus écartées de la référence d'entraînement.
-            # C'est une DESCRIPTION du flux, pas l'explication de la décision :
-            # le gradient boosting combine ces variables de façon non linéaire.
-            _lot = st.session_state.get("last_batch")
-            if HGB is not None and _lot is not None:
-                try:
-                    _n = HGB["n_net"]
-                    _A = np.asarray(_lot[_j: _j + 1, :_n], dtype=float) \
-                        * scaler.scale_[:_n] + scaler.mean_[:_n]
-                    _Z = (_A - HGB["mu"]) / HGB["sd"]
-                    _top = np.argsort(-np.abs(_Z[0]))[:5]
-                    _noms = META.get("net_columns") or []
-                    st.markdown(f"**{t('tr_dev_h')}**")
-                    st.dataframe(
-                        pd.DataFrame({t("tr_feat"): [
+                # Les deux lectures d'un même chiffre, côte à côte. C'est la
+                # partie « expliquer sans jargon » : un chiffre sans sa limite
+                # se lit comme une promesse.
+                _m1, _m2 = st.columns(2)
+                with _m1:
+                    st.markdown(
+                        f'<div class="panel" lang="{LANG}" '
+                        f'style="height:100%;border-left:3px solid var(--ok);">'
+                        f'<div style="font-weight:700;color:var(--ok);margin-bottom:8px;">'
+                        f'{t("means_h")}</div>'
+                        f'<div style="font-size:0.9rem;color:var(--fg-2);">'
+                        f'{_md_html(t("means_b"))}</div></div>', unsafe_allow_html=True)
+                with _m2:
+                    st.markdown(
+                        f'<div class="panel" lang="{LANG}" '
+                        f'style="height:100%;border-left:3px solid var(--danger);">'
+                        f'<div style="font-weight:700;color:var(--danger);margin-bottom:8px;">'
+                        f'{t("nomeans_h")}</div>'
+                        f'<div style="font-size:0.9rem;color:var(--fg-2);">'
+                        f'{_md_html(t("nomeans_b"))}</div></div>', unsafe_allow_html=True)
+                st.caption(t("pc_legend"))
+
+                # Deux issues, dans cet ordre : avancer, ou refaire.
+                _b_next, _b_redo = st.columns([1.4, 1])
+                with _b_next:
+                    _nxt = min(_pc + 1, ETAPES)
+                    if st.button(t("u_next_n", n=_nxt, nom=t(PC_KEYS[_nxt - 1])),
+                                 key="pc_unlock_next", type="primary", width="stretch"):
+                        st.session_state.pc_step = _nxt
+                        st.rerun()
+                with _b_redo:
+                    if st.button(t("u_redo"), key="pc_redo", width="stretch"):
+                        if relancer_analyse():
+                            st.rerun()
+                        else:
+                            st.caption(t("u_redo_no"))
+
+                # Ce que le parcours garde d'une étape à l'autre : des mesures
+                # réelles et des réglages, rien d'autre.
+                st.markdown(
+                    f'<div class="u-mem" lang="{LANG}"><div class="u-mem-h">'
+                    f'{t("u_mem_h")}</div>{t("u_mem_b")}</div>',
+                    unsafe_allow_html=True)
+                st.write("")
+            # Trois indicateurs, comme sur le rendu de référence. Le nombre de
+            # flux normaux n'a pas de carte à lui : il se lit sous « Alertes »
+            # (« N sous le seuil »). Quatre cartes pour trois informations
+            # affichaient deux fois le même nombre.
+            k1, k2, k3 = st.columns(3)
+            k1.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("d_flows")}</div>'
+                        f'<div class="kpi-v">{nb_total:,}</div></div>', unsafe_allow_html=True)
+            k2.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("d_alerts")}</div>'
+                        f'<div class="kpi-v" style="color:{"var(--danger)" if nb_alert else "var(--ok)"}">'
+                        f'{nb_alert:,}</div><div class="kpi-s">{nb_total - nb_alert:,} '
+                        f'{t("d_below")} · {pct:.1f} {t("d_detected")}</div></div>',
+                        unsafe_allow_html=True)
+            k3.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("d_verdict")}</div>'
+                        f'<div class="kpi-v" style="color:{"var(--danger)" if nb_alert else "var(--ok)"}">'
+                        f'{t("d_threat") if nb_alert else t("d_clean")}</div>'
+                        f'<div class="kpi-s">{t("d_threat_sub") if nb_alert else t("d_clean_sub")}</div></div>',
+                        unsafe_allow_html=True)
+            # Sans cette phrase, les trois chiffres flottent : on ne sait ni sur
+            # quel lot ni sur quel seuil ils sont calculés.
+            st.caption(t("d_lot_cap",
+                         fpr=f"{float(st.session_state.get('last_fpr', 5.0)):g}"))
+
+
+            if _pc >= 3:
+                # labelled batch: real precision / recall
+                tl = st.session_state.get("last_true")
+                if tl is not None and len(tl) == nb_total:
+                    tb = np.array(["BENIGN" in str(l).upper() for l in tl])
+                    tp = int((mask & ~tb).sum()); fp = int((mask & tb).sum())
+                    m1, m2, m3 = st.columns(3)
+                    # Ces trois libelles etaient ecrits en anglais dans la
+                    # version francaise : toute chaine visible a sa paire.
+                    m1.metric(t("d_tp"), tp,
+                              f"{tp / max(int((~tb).sum()), 1):.1%} {t('d_recall_s')}")
+                    m2.metric(t("d_fp"), fp,
+                              f"{fp / max(int(tb.sum()), 1):.1%} {t('d_fpr_s')}",
+                              delta_color="inverse")
+                    m3.metric(t("d_zd"), int((~tb).sum()))
+
+                st.write("")
+                left, right = st.columns([1.15, 0.85])
+                with left:
+                    st.markdown(f"**{t('d_suspect_h')}**")
+                    st.caption(t("d_suspect_c"))
+                    smax = float(scores.max()) + 1e-9
+                    for i in np.argsort(scores)[::-1][:10]:
+                        sv = float(scores[i]); bad = sv > thr
+                        w = min(100.0, 100.0 * sv / smax)
+                        st.markdown(
+                            f'<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;'
+                            f'margin-bottom:3px;border-radius:8px;'
+                            f'background:{"#1b0d0d" if bad else "#08190f"};'
+                            f'border-left:3px solid {"var(--danger)" if bad else "var(--ok)"};font-size:0.9rem;">'
+                            f'<div style="min-width:96px;color:var(--fg-3);">{t("d_flow_n")} #{int(i)+1}</div>'
+                            f'<div style="flex:1;background:var(--border);height:7px;border-radius:10px;overflow:hidden;">'
+                            f'<div style="width:{w:.0f}%;height:100%;background:{"var(--danger)" if bad else "var(--ok)"};"></div></div>'
+                            f'<div style="min-width:126px;text-align:right;color:{"var(--danger)" if bad else "var(--ok)"};">'
+                            f'{"ALERT" if bad else "normal"} · {sv:.2f}</div></div>', unsafe_allow_html=True)
+                with right:
+                    st.markdown(f"**{t('d_dist_h')}**")
+                    st.bar_chart(pd.DataFrame({
+                        "cat": ["Normal", "Alert"],
+                        "n": [nb_total - nb_alert, nb_alert]}).set_index("cat"),
+                        height=230, color="#7ab4f7")
+                    st.caption(f"threshold = {thr:.3f}")
+
+                # Cinq graphiques empilés, c'était un mur en travers de la
+                # lecture. Ils restent tous — rien n'est retiré — mais derrière
+                # un seul dépliant, fermé par défaut.
+                with st.expander(t("adv_h")):
+                    st.caption(t("adv_c"))
+                    st.write("")
+                    st.markdown(f"**{t('d_charts_h')}**")
+                    n_plot = 1200
+                    idx = (np.linspace(0, nb_total - 1, n_plot).astype(int)
+                           if nb_total > n_plot else np.arange(nb_total))
+                    st.caption(t("d_advice", n=f"{nb_total:,}", m=f"{len(idx):,}"))
+
+                    a, b = st.columns(2)
+                    with a:
+                        st.markdown(f"**{t('c_score')}**")
+                        st.line_chart(pd.DataFrame({"score": scores[idx],
+                                                    "threshold": np.full(len(idx), thr)}), height=200)
+                        st.markdown(f"**{t('c_conf')}**")
+                        st.line_chart(pd.DataFrame({"conf": conf[idx]}), height=170)
+                    with b:
+                        st.markdown(f"**{t('c_viol')}**")
+                        top = np.argsort(violation)[::-1][:8]
+                        st.bar_chart(pd.DataFrame({"flow": [f"F{i}" for i in top],
+                                                   "violation": violation[top]}).set_index("flow"), height=200)
+                        st.markdown(f"**{t('c_energy')}**")
+                        st.line_chart(pd.DataFrame({"energy": energy[idx]}), height=170)
+
+                    st.markdown(f"**{t('c_map')}**")
+                    st.scatter_chart(pd.DataFrame({
+                        "x": emb[idx, 0], "y": emb[idx, 1],
+                        "class": np.where(scores[idx] > thr,
+                                          "signalé" if LANG == "fr" else "flagged",
+                                          "normal")}),
+                        x="x", y="y", color="class", height=260)
+
+        st.divider()
+        if _pc == 7:
+            st.markdown("**Registry**")
+            if st.session_state.get("history"):
+                dfh = pd.DataFrame(st.session_state.history)
+                # Le registre est un journal : il se lit ligne par ligne, donc <table>.
+                html_table(dfh.tail(12), key="dl_registre", file_name="registre_session.csv")
+
+
+        # ════════════════════════════════════════════════════════════════════
+        #  TRACE D'UN FLUX — le trajet complet d'une décision
+        #  Pédagogie pure : rien n'est recalculé, on déroule ce qui a déjà été
+        #  calculé sur le lot. Aucun réglage ici n'influence la détection.
+        # ════════════════════════════════════════════════════════════════════
+        if "last_scores" in st.session_state and _pc == 4:
+            st.divider()
+            st.markdown(f"**{t('tr_h')}**")
+            st.caption(t("tr_c"))
+
+            _scp = np.asarray(st.session_state.last_scores, dtype=float)
+            _tru = st.session_state.get("last_true")
+            _al = _scp > thr
+            if _tru is not None and len(_tru) == len(_scp):
+                _atk = np.array(["BENIGN" not in str(x).upper() for x in _tru])
+                _cas = [("tr_cat_hit", _atk & _al), ("tr_cat_miss", _atk & ~_al),
+                        ("tr_cat_fp", ~_atk & _al), ("tr_cat_tn", ~_atk & ~_al)]
+            else:
+                _atk = None
+                _cas = [("tr_cat_hit", _al), ("tr_cat_tn", ~_al)]
+
+            _dispo = [(k, m) for k, m in _cas if bool(m.any())]
+            if _dispo:
+                _lib = [f"{t(k)} ({int(m.sum())})" for k, m in _dispo]
+                _choix = st.selectbox(t("tr_pick"), _lib, help=t("tr_pick_help"))
+                _k, _m = _dispo[_lib.index(_choix)]
+                _j = int(np.flatnonzero(_m)[0])
+                _v = float(_scp[_j])
+
+                _d1, _d2, _d3 = st.columns(3)
+                _d1.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("tr_score")}</div>'
+                             f'<div class="kpi-v">{_v:.3g}</div>'
+                             f'<div class="kpi-s">{t("tr_thr")} {thr:.3g}</div></div>',
+                             unsafe_allow_html=True)
+                _d2.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("tr_verdict")}</div>'
+                             f'<div class="kpi-v">{t("tr_hit") if bool(_al[_j]) else t("tr_quiet")}</div>'
+                             f'<div class="kpi-s">{_v:.3g} {"&gt;" if bool(_al[_j]) else "≤"} {thr:.3g}</div></div>',
+                             unsafe_allow_html=True)
+                _lab_txt = str(_tru[_j]) if (_atk is not None) else t("tr_unknown")
+                _d3.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("tr_true")}</div>'
+                             f'<div class="kpi-v" style="font-size:1rem;">{_lab_txt}</div>'
+                             f'<div class="kpi-s">#{_j}</div></div>',
+                             unsafe_allow_html=True)
+
+                # Les variables les plus écartées de la référence d'entraînement.
+                # C'est une DESCRIPTION du flux, pas l'explication de la décision :
+                # le gradient boosting combine ces variables de façon non linéaire.
+                _lot = st.session_state.get("last_batch")
+                if HGB is not None and _lot is not None:
+                    try:
+                        _n = HGB["n_net"]
+                        _A = np.asarray(_lot[_j: _j + 1, :_n], dtype=float) \
+                            * scaler.scale_[:_n] + scaler.mean_[:_n]
+                        _Z = (_A - HGB["mu"]) / HGB["sd"]
+                        _top = np.argsort(-np.abs(_Z[0]))[:5]
+                        _noms = META.get("net_columns") or []
+                        st.markdown(f"**{t('tr_dev_h')}**")
+                        html_table(pd.DataFrame({t("tr_feat"): [
                             (_noms[int(i)] if int(i) < len(_noms) else f"colonne {int(i)}")
                             for i in _top],
-                                      t("tr_z"): [round(float(_Z[0][i]), 2) for i in _top]}),
-                        width='stretch', hide_index=True)
-                    st.caption(t("tr_dev_c"))
-                except Exception:
-                    pass
+                            t("tr_z"): [f'{float(_Z[0][i]):+.2f}' for i in _top]}),
+                            caption=t("tr_dev_h"))
+                        st.caption(t("tr_dev_c"))
+                    except Exception:
+                        pass
 
-    # ════════════════════════════════════════════════════════════════════
-    #  REJEU FLUX PAR FLUX — un lot déjà noté, qui défile
-    # ════════════════════════════════════════════════════════════════════
-    if "last_scores" in st.session_state:
+        # ════════════════════════════════════════════════════════════════════
+        #  REJEU FLUX PAR FLUX — un lot déjà noté, qui défile
+        # ════════════════════════════════════════════════════════════════════
+        if "last_scores" in st.session_state and _pc == 4:
+            st.write("")
+            st.markdown(f"**{t('rj_h')}**")
+            st.caption(t("rj_c"))
+            if st.button(t("rj_btn"), width='stretch'):
+                _scp = np.asarray(st.session_state.last_scores, dtype=float)
+                _N = len(_scp)
+                _pas = max(1, _N // 60)          # 60 mises à jour au plus
+                _zone = st.empty()
+                _barre = st.progress(0.0)
+                _cum = 0
+                for _i in range(0, _N, _pas):
+                    _cum += int((_scp[_i:_i + _pas] > thr).sum())
+                    _fait = min(_N, _i + _pas)
+                    _zone.markdown(t("rj_mid", done=f"{_fait:,}", alerts=f"{_cum:,}"))
+                    _barre.progress(_fait / _N)
+                    time.sleep(0.02)             # ~1,2 s au total
+                _barre.progress(1.0)
+                _zone.markdown(t("rj_end", alerts=f"{_cum:,}", n=f"{_N:,}"))
+            st.caption(t("rj_note"))
+
+        # ════════════════════════════════════════════════════════════════════
+        #  MODE DIRECT — flux notés à mesure que le collecteur les écrit
+        #  Ce n'est pas une simulation : les lignes viennent d'un fichier écrit
+        #  par un collecteur réseau, et sont notées au fur et à mesure.
+        # ════════════════════════════════════════════════════════════════════
         st.write("")
-        st.markdown(f"**{t('rj_h')}**")
-        st.caption(t("rj_c"))
-        if st.button(t("rj_btn"), width='stretch'):
-            _scp = np.asarray(st.session_state.last_scores, dtype=float)
-            _N = len(_scp)
-            _pas = max(1, _N // 60)          # 60 mises à jour au plus
-            _zone = st.empty()
-            _barre = st.progress(0.0)
-            _cum = 0
-            for _i in range(0, _N, _pas):
-                _cum += int((_scp[_i:_i + _pas] > thr).sum())
-                _fait = min(_N, _i + _pas)
-                _zone.markdown(t("rj_mid", done=f"{_fait:,}", alerts=f"{_cum:,}"))
-                _barre.progress(_fait / _N)
-                time.sleep(0.02)             # ~1,2 s au total
-            _barre.progress(1.0)
-            _zone.markdown(t("rj_end", alerts=f"{_cum:,}", n=f"{_N:,}"))
-        st.caption(t("rj_note"))
+        if _pc == 4:
+            st.markdown(f"**{t('lv_h')}**")
+            st.caption(t("lv_c"))
+            _lv_path = os.path.join(ROOT, "data", "live", "live_flows.csv")
 
-    # ════════════════════════════════════════════════════════════════════
-    #  MODE DIRECT — flux notés à mesure que le collecteur les écrit
-    #  Ce n'est pas une simulation : les lignes viennent d'un fichier écrit
-    #  par un collecteur réseau, et sont notées au fur et à mesure.
-    # ════════════════════════════════════════════════════════════════════
-    st.write("")
-    st.markdown(f"**{t('lv_h')}**")
-    st.caption(t("lv_c"))
-    _lv_path = os.path.join(ROOT, "data", "live", "live_flows.csv")
+            if not os.path.exists(_lv_path):
+                st.info(t("lv_missing", p="data/live/live_flows.csv"))
+                with st.expander(t("lv_how")):
+                    st.markdown(t("lv_how_body"))
+            else:
+                _lv_on = bool(st.session_state.get("lv_on"))
+                if st.button(t("lv_stop") if _lv_on else t("lv_start"), width='stretch'):
+                    st.session_state.lv_on = not _lv_on
+                    st.session_state.lv_skip = 0
+                    st.session_state.lv_n = 0
+                    st.session_state.lv_a = 0
+                    st.session_state.lv_rows = []
+                    st.rerun()
 
-    if not os.path.exists(_lv_path):
-        st.info(t("lv_missing", p="data/live/live_flows.csv"))
-        with st.expander(t("lv_how")):
-            st.markdown(t("lv_how_body"))
-    else:
-        _lv_on = bool(st.session_state.get("lv_on"))
-        if st.button(t("lv_stop") if _lv_on else t("lv_start"), width='stretch'):
-            st.session_state.lv_on = not _lv_on
-            st.session_state.lv_skip = 0
-            st.session_state.lv_n = 0
-            st.session_state.lv_a = 0
-            st.session_state.lv_rows = []
-            st.rerun()
+                @st.fragment(run_every=1.5)
+                def _live_panel():
+                    """Relit le fichier du collecteur toutes les deux secondes."""
+                    if not st.session_state.get("lv_on"):
+                        st.caption(t("lv_wait"))
+                        return
+                    _skip = int(st.session_state.get("lv_skip", 0))
+                    try:
+                        # skiprows évite de réanalyser tout l'historique à chaque tour
+                        _df = pd.read_csv(_lv_path,
+                                          skiprows=range(1, _skip + 1) if _skip else None)
+                    except Exception:
+                        st.caption(t("lv_wait"))
+                        return
 
-        @st.fragment(run_every=1.5)
-        def _live_panel():
-            """Relit le fichier du collecteur toutes les deux secondes."""
-            if not st.session_state.get("lv_on"):
-                st.caption(t("lv_wait"))
-                return
-            _skip = int(st.session_state.get("lv_skip", 0))
-            try:
-                # skiprows évite de réanalyser tout l'historique à chaque tour
-                _df = pd.read_csv(_lv_path,
-                                  skiprows=range(1, _skip + 1) if _skip else None)
-            except Exception:
-                st.caption(t("lv_wait"))
-                return
+                    _new = _df if len(_df) else _df.iloc[0:0]
+                    if len(_new) > 2000:          # garde-fou : on ne noie pas l'écran
+                        _new = _new.iloc[:2000]
 
-            _new = _df if len(_df) else _df.iloc[0:0]
-            if len(_new) > 2000:          # garde-fou : on ne noie pas l'écran
-                _new = _new.iloc[:2000]
+                    if len(_new):
+                        st.session_state.lv_skip = _skip + len(_new)
+                        _X, _miss = live_prepare(_new)
+                        if _miss:
+                            st.error(t("lv_cols", c=", ".join(str(x) for x in _miss[:6])))
+                            return
+                        _sc = np.asarray(infer(_X)[0], dtype=float)
+                        _hit = _sc > thr
+                        st.session_state.lv_n = int(st.session_state.get("lv_n", 0)) + len(_sc)
+                        st.session_state.lv_a = int(st.session_state.get("lv_a", 0)) + int(_hit.sum())
+                        _rows = list(st.session_state.get("lv_rows", []))
+                        _now = datetime.datetime.now().strftime("%H:%M:%S")
+                        for _k in range(len(_sc)):
+                            _rows.append({"heure": _now,
+                                          "score": float(_sc[_k]),
+                                          "verdict": t("tr_hit") if bool(_hit[_k]) else t("tr_quiet")})
+                        st.session_state.lv_rows = _rows[-12:]
 
-            if len(_new):
-                st.session_state.lv_skip = _skip + len(_new)
-                _X, _miss = live_prepare(_new)
-                if _miss:
-                    st.error(t("lv_cols", c=", ".join(str(x) for x in _miss[:6])))
-                    return
-                _sc = np.asarray(infer(_X)[0], dtype=float)
-                _hit = _sc > thr
-                st.session_state.lv_n = int(st.session_state.get("lv_n", 0)) + len(_sc)
-                st.session_state.lv_a = int(st.session_state.get("lv_a", 0)) + int(_hit.sum())
-                _rows = list(st.session_state.get("lv_rows", []))
-                _now = datetime.datetime.now().strftime("%H:%M:%S")
-                for _k in range(len(_sc)):
-                    _rows.append({"heure": _now,
-                                  "score": float(_sc[_k]),
-                                  "verdict": t("tr_hit") if bool(_hit[_k]) else t("tr_quiet")})
-                st.session_state.lv_rows = _rows[-12:]
+                    _n = int(st.session_state.get("lv_n", 0))
+                    _a = int(st.session_state.get("lv_a", 0))
+                    _r = (100.0 * _a / _n) if _n else 0.0
 
-            _n = int(st.session_state.get("lv_n", 0))
-            _a = int(st.session_state.get("lv_a", 0))
-            _r = (100.0 * _a / _n) if _n else 0.0
+                    # `role="status"` : le compteur est annoncé aux lecteurs d'écran
+                    # quand il change. Le symbole ⚠ et le mot « alerte » portent
+                    # l'information autant que la couleur (WCAG 1.4.1).
+                    _html = (
+                        f'<div class="lv-head" role="status">'
+                        f'<span class="lv-dot" aria-hidden="true"></span>'
+                        f'<b>{t("lv_live_on")}</b>'
+                        f'<span>{t("lv_count", n=f"{_n:,}", a=f"{_a:,}", r=f"{_r:.1f}")}</span>'
+                        f'</div>'
+                        f'<div class="lv-bar" aria-hidden="true">'
+                        f'<div class="lv-fill" style="width:{min(100.0, _r):.1f}%"></div></div>')
+                    for _i, _c in enumerate(reversed(st.session_state.get("lv_rows", [])[-6:])):
+                        _est_alerte = "⚠" in str(_c.get("verdict", ""))
+                        _html += (
+                            f'<div class="lv-card{" lv-al" if _est_alerte else ""}" '
+                            f'style="animation-delay:{_i * 0.05:.2f}s">'
+                            f'<span class="lv-t">{_c.get("heure", "")}</span>'
+                            f'<span class="lv-s">{float(_c.get("score", 0.0)):.3g}</span>'
+                            f'<span class="lv-v">{_c.get("verdict", "")}</span></div>')
+                    st.markdown(_html, unsafe_allow_html=True)
+                    if not _n:
+                        st.caption(t("lv_wait"))
 
-            # `role="status"` : le compteur est annoncé aux lecteurs d'écran
-            # quand il change. Le symbole ⚠ et le mot « alerte » portent
-            # l'information autant que la couleur (WCAG 1.4.1).
-            _html = (
-                f'<div class="lv-head" role="status">'
-                f'<span class="lv-dot" aria-hidden="true"></span>'
-                f'<b>{t("lv_live_on")}</b>'
-                f'<span>{t("lv_count", n=f"{_n:,}", a=f"{_a:,}", r=f"{_r:.1f}")}</span>'
-                f'</div>'
-                f'<div class="lv-bar" aria-hidden="true">'
-                f'<div class="lv-fill" style="width:{min(100.0, _r):.1f}%"></div></div>')
-            for _i, _c in enumerate(reversed(st.session_state.get("lv_rows", [])[-6:])):
-                _est_alerte = "⚠" in str(_c.get("verdict", ""))
-                _html += (
-                    f'<div class="lv-card{" lv-al" if _est_alerte else ""}" '
-                    f'style="animation-delay:{_i * 0.05:.2f}s">'
-                    f'<span class="lv-t">{_c.get("heure", "")}</span>'
-                    f'<span class="lv-s">{float(_c.get("score", 0.0)):.3g}</span>'
-                    f'<span class="lv-v">{_c.get("verdict", "")}</span></div>')
-            st.markdown(_html, unsafe_allow_html=True)
-            if not _n:
-                st.caption(t("lv_wait"))
+                # Animations. Injectées hors du fragment pour ne pas être réécrites
+                # à chaque rafraîchissement. `prefers-reduced-motion` les coupe : une
+                # animation n'est jamais une information, seulement un confort.
+                st.markdown("""<style>
+        .lv-head{display:flex;align-items:center;gap:10px;font-size:.95rem;
+                 color:var(--fg-2);margin-bottom:9px}
+        .lv-dot{width:10px;height:10px;border-radius:50%;background:var(--ok);
+                animation:lv_pulse 1.6s ease-in-out infinite}
+        @keyframes lv_pulse{
+          0%{box-shadow:0 0 0 0 rgba(94,224,138,.65)}
+          70%{box-shadow:0 0 0 10px rgba(94,224,138,0)}
+          100%{box-shadow:0 0 0 0 rgba(94,224,138,0)}}
+        .lv-bar{height:8px;border-radius:999px;background:var(--surface-2);
+                border:1px solid var(--border);overflow:hidden;margin:2px 0 15px}
+        .lv-fill{height:100%;background:linear-gradient(90deg,var(--info),var(--warn));
+                 animation:lv_grow .9s cubic-bezier(.2,.8,.2,1) both}
+        @keyframes lv_grow{from{width:0}}
+        .lv-card{display:flex;gap:12px;align-items:center;padding:7px 11px;margin-bottom:6px;
+                 border-radius:8px;background:var(--surface-2);
+                 border-left:3px solid var(--ok);animation:lv_in .35s ease-out both}
+        .lv-card.lv-al{border-left-color:var(--danger)}
+        @keyframes lv_in{from{opacity:.35;transform:translateY(-4px)}to{opacity:1;transform:none}}
+        .lv-t{color:var(--fg-4);font-size:.82rem;min-width:62px}
+        .lv-s{color:var(--fg-1);min-width:78px;font-variant-numeric:tabular-nums}
+        .lv-v{margin-left:auto;font-size:.85rem;font-weight:600;color:var(--fg-2)}
+        @media (prefers-reduced-motion:reduce){
+          .lv-dot,.lv-fill,.lv-card{animation:none !important}}
+        </style>""", unsafe_allow_html=True)
 
-        # Animations. Injectées hors du fragment pour ne pas être réécrites
-        # à chaque rafraîchissement. `prefers-reduced-motion` les coupe : une
-        # animation n'est jamais une information, seulement un confort.
-        st.markdown("""<style>
-.lv-head{display:flex;align-items:center;gap:10px;font-size:.95rem;
-         color:var(--fg-2);margin-bottom:9px}
-.lv-dot{width:10px;height:10px;border-radius:50%;background:var(--ok);
-        animation:lv_pulse 1.6s ease-in-out infinite}
-@keyframes lv_pulse{
-  0%{box-shadow:0 0 0 0 rgba(94,224,138,.65)}
-  70%{box-shadow:0 0 0 10px rgba(94,224,138,0)}
-  100%{box-shadow:0 0 0 0 rgba(94,224,138,0)}}
-.lv-bar{height:8px;border-radius:999px;background:var(--surface-2);
-        border:1px solid var(--border);overflow:hidden;margin:2px 0 15px}
-.lv-fill{height:100%;background:linear-gradient(90deg,var(--info),var(--warn));
-         animation:lv_grow .9s cubic-bezier(.2,.8,.2,1) both}
-@keyframes lv_grow{from{width:0}}
-.lv-card{display:flex;gap:12px;align-items:center;padding:7px 11px;margin-bottom:6px;
-         border-radius:8px;background:var(--surface-2);
-         border-left:3px solid var(--ok);animation:lv_in .35s ease-out both}
-.lv-card.lv-al{border-left-color:var(--danger)}
-@keyframes lv_in{from{opacity:.35;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.lv-t{color:var(--fg-4);font-size:.82rem;min-width:62px}
-.lv-s{color:var(--fg-1);min-width:78px;font-variant-numeric:tabular-nums}
-.lv-v{margin-left:auto;font-size:.85rem;font-weight:600;color:var(--fg-2)}
-@media (prefers-reduced-motion:reduce){
-  .lv-dot,.lv-fill,.lv-card{animation:none !important}}
-</style>""", unsafe_allow_html=True)
+                _live_panel()
 
-        _live_panel()
+        if _pc == 5:
+            # ── Comparaison des trois détecteurs sur le même lot ──────────────────
+            st.divider()
+            if st.button(t("cmp_btn"), width='stretch'):
+                _Xs = st.session_state.get("last_batch")
+                if _Xs is not None:
+                    st.session_state.pc_step = 5
+                if _Xs is None:
+                    st.info(t("cmp_nodata"))
+                else:
+                    _labs = st.session_state.get("last_true")
+                    if _labs is None:
+                        st.caption(t("lab_none"))
+                    _fpr = float(st.session_state.get("last_fpr", 5.0))
+                    _rows = []
+                    _manquants = []
+                    with st.spinner(t("cmp_btn")):
+                        for _m, _name in (("modele", "MS-Transformer"),
+                                          ("one-class", "One-class"),
+                                          ("supervise", "Supervised" if LANG == "en" else "Supervisé")):
+                            # Un détecteur indisponible garde sa ligne, marquée « n/a ».
+                            # Le supprimer ferait croire à deux détecteurs au lieu de
+                            # trois — c'est exactement ce qui se produisait quand
+                            # models/features_maha.npz n'existait pas.
+                            _dispo = not ((_m == "supervise" and HGB is None and SUP is None)
+                                          or (_m == "one-class" and FEAT is None))
+                            if not _dispo:
+                                _manquants.append(_name)
+                                _rows.append({
+                                    t("cmp_col"): _name,
+                                    t("cmp_alerts"): t("n_a"),
+                                    t("cmp_rate"): t("n_a"),
+                                    t("cmp_recall"): t("n_a"),
+                                    t("cmp_scale"): detector_scales().get(_m, {}).get("kind", t("n_a")),
+                                })
+                                continue
+                            _sc, _, _, _ = infer(_Xs, mode_=_m)
+                            _thr = _cmp_threshold(_m, _fpr)
+                            _nb = int((_sc > _thr).sum())
+                            _rec = t("n_a")
+                            if _labs is not None:
+                                _lab = np.array([str(v) for v in _labs])
+                                _atk = ~np.array(["BENIGN" in str(v).upper() for v in _lab])
+                                if _atk.sum() > 0:
+                                    _rec = f"{(_sc[_atk] > _thr).mean()*100:.1f} %"
+                            _rows.append({
+                                t("cmp_col"): _name,
+                                t("cmp_alerts"): f"{_nb}/{len(_sc)}",
+                                t("cmp_rate"): f"{_nb/len(_sc)*100:.1f} %",
+                                t("cmp_recall"): _rec,
+                                t("cmp_scale"): detector_scales()[_m]["kind"],
+                            })
+                    if _rows:
+                        st.markdown(f"**{t('cmp_h')}**")
+                        html_table(pd.DataFrame(_rows),
+                                   caption=t("cmp_intro", fpr=f"{_fpr:g}"),
+                                   na=t("n_a"), key="dl_cmp_lot",
+                                   file_name="comparaison_detecteurs.csv")
+                        if _manquants:
+                            st.warning(t("cmp_indispo", d=", ".join(_manquants)))
+                        st.caption(t("cmp_note"))
 
-    # ── Comparaison des trois détecteurs sur le même lot ──────────────────
-    st.divider()
-    st.markdown(f"#### {t('d_s4')}")
-    if st.button(t("cmp_btn"), width='stretch'):
-        _Xs = st.session_state.get("last_batch")
-        if _Xs is None:
-            st.info(t("cmp_nodata"))
-        else:
-            _labs = st.session_state.get("last_true")
-            if _labs is None:
-                st.caption(t("lab_none"))
-            _fpr = float(st.session_state.get("last_fpr", 5.0))
-            _rows = []
-            _manquants = []
-            with st.spinner(t("cmp_btn")):
-                for _m, _name in (("modele", "MS-Transformer"),
-                                  ("one-class", "One-class"),
-                                  ("supervise", "Supervised" if LANG == "en" else "Supervisé")):
-                    # Un détecteur indisponible garde sa ligne, marquée « n/a ».
-                    # Le supprimer ferait croire à deux détecteurs au lieu de
-                    # trois — c'est exactement ce qui se produisait quand
-                    # models/features_maha.npz n'existait pas.
-                    _dispo = not ((_m == "supervise" and HGB is None and SUP is None)
-                                  or (_m == "one-class" and FEAT is None))
-                    if not _dispo:
-                        _manquants.append(_name)
-                        _rows.append({
-                            t("cmp_col"): _name,
-                            t("cmp_alerts"): t("n_a"),
-                            t("cmp_rate"): t("n_a"),
-                            t("cmp_recall"): t("n_a"),
-                            t("cmp_scale"): detector_scales().get(_m, {}).get("kind", t("n_a")),
-                        })
-                        continue
-                    _sc, _, _, _ = infer(_Xs, mode_=_m)
-                    _thr = _cmp_threshold(_m, _fpr)
-                    _nb = int((_sc > _thr).sum())
-                    _rec = t("n_a")
-                    if _labs is not None:
-                        _lab = np.array([str(v) for v in _labs])
-                        _atk = ~np.array(["BENIGN" in str(v).upper() for v in _lab])
-                        if _atk.sum() > 0:
-                            _rec = f"{(_sc[_atk] > _thr).mean()*100:.1f} %"
-                    _rows.append({
-                        t("cmp_col"): _name,
-                        t("cmp_alerts"): f"{_nb}/{len(_sc)}",
-                        t("cmp_rate"): f"{_nb/len(_sc)*100:.1f} %",
-                        t("cmp_recall"): _rec,
-                        t("cmp_scale"): detector_scales()[_m]["kind"],
-                    })
-            if _rows:
-                st.markdown(f"**{t('cmp_h')}**")
-                st.caption(t("cmp_intro", fpr=f"{_fpr:g}"))
-                st.dataframe(pd.DataFrame(_rows), width='stretch', hide_index=True)
-                if _manquants:
-                    st.warning(t("cmp_indispo", d=", ".join(_manquants)))
-                st.caption(t("cmp_note"))
+        # ════════════════════════════════════════════════════════════════════
+        #  ÉTAPE 6 · EXPORTER — le coffre : ce que la session a réellement produit
+        # ════════════════════════════════════════════════════════════════════
+        if _pc == 6:
+            st.divider()
+            st.caption(t("ex_c"))
+            _res = os.path.join(ROOT, "results")
+            _csv = [f for f in ("metrics_global.csv", "metrics_per_class.csv",
+                                "ablation.csv") if os.path.exists(os.path.join(_res, f))]
+            _figs = sorted(f for f in os.listdir(_res)
+                           if f.startswith("fig_") and f.endswith(".png")) \
+                if os.path.isdir(_res) else []
+            if not _csv and not _figs and st.session_state.get("last_scores") is None:
+                st.info(t("ex_none"))
+            for _i, _f in enumerate(_csv):
+                _p = os.path.join(_res, _f)
+                with open(_p, "rb") as _fh:
+                    st.download_button(f"CSV · {_f}", _fh.read(), file_name=_f,
+                                       mime="text/csv", key=f"ex_csv_{_i}")
+            if _figs:
+                st.markdown(f"**{t('ex_fig')}**")
+                _cols = st.columns(3)
+                for _i, _f in enumerate(_figs):
+                    _p = os.path.join(_res, _f)
+                    with open(_p, "rb") as _fh:
+                        with _cols[_i % 3]:
+                            st.download_button(_f.replace("fig_", "").replace(".png", ""),
+                                               _fh.read(), file_name=_f,
+                                               mime="image/png", key=f"ex_fig_{_i}")
 
-# ══════════════════════════════════════════════════════════════════════
-#  3 · RESULTS
-# ══════════════════════════════════════════════════════════════════════
+        # ════════════════════════════════════════════════════════════════════
+        #  ÉTAPE 7 · RAPPORT — ce que la session a fait, dans l'ordre
+        # ════════════════════════════════════════════════════════════════════
+        if _pc == 7:
+            st.divider()
+            st.caption(t("rp_c"))
+            _om = official_metrics()
+            if _om:
+                _g = _om["global"]
+                html_table(pd.DataFrame([{
+                    "AUROC": _num(_g, "auroc"),
+                    t("r_recall"): _pct(_g, "tpr_recall"),
+                    t("r_fpr"): _pct(_g, "fpr"),
+                    t("r_prec"): _pct(_g, "precision"),
+                }]), caption=t("rp_h"), key="dl_rapport",
+                    file_name="rapport_session.csv")
+            if not st.session_state.get("history"):
+                st.info(t("rp_none"))
+            else:
+                if st.button(t("rp_reset"), key="rp_reset"):
+                    st.session_state.history = []
+                    st.rerun()
+
+        # ══════════════════════════════════════════════════════════════════════
+    #  3 · RESULTS
+    # ══════════════════════════════════════════════════════════════════════
 with tab_r:
+    st.markdown(f'<h2 class="tab-h">{t("tab_res")}</h2>', unsafe_allow_html=True)
     om = official_metrics()
     ad = analysis_data()
 
@@ -2433,7 +3355,6 @@ with tab_r:
                 _lot = json.load(open(_lot_path, encoding="utf-8"))
                 _c = t("lot_col")
                 st.markdown(f"**{t('lot_h')}**")
-                st.caption(t("lot_c"))
                 _r = {
                     _c[0]: os.path.basename(str(_lot.get("fichier", "—"))),
                     _c[1]: f'{_lot.get("flux", 0):,}'.replace(",", " "),
@@ -2443,7 +3364,9 @@ with tab_r:
                             else t("n_a")),
                     _c[5]: f'{_lot.get("duree_s", 0):.1f} s',
                 }
-                st.dataframe(pd.DataFrame([_r]), width='stretch', hide_index=True)
+                # lot_col est une paire (fr, en) : on l'indexe explicitement,
+                # sinon la légende contiendrait le tuple entier.
+                html_table(pd.DataFrame([_r]), caption=t("lot_c"))
                 if "rappel" in _lot:
                     st.caption(
                         f'{"Rappel" if LANG == "fr" else "Recall"} '
@@ -2457,24 +3380,24 @@ with tab_r:
             st.caption(t("lot_aide"))
             st.write("")
 
-        st.markdown(f"#### {t('r_head')}")
+        st.markdown(f"### {t('r_head')}")
         st.caption(t("r_note", nt=f"{g['n_samples']:,}", nb=f"{g['n_benign']:,}",
                      na=f"{g['n_anomaly']:,}"))
 
         a1, a2, a3, a4 = st.columns(4)
-        a1.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_auroc")}</div>'
+        a1.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("r_auroc")}</div>'
                     f'<div class="kpi-v">{_num(g, "auroc", 4)}</div>'
                     f'<div class="kpi-s">{_ci(g, 4)}</div></div>',
                     unsafe_allow_html=True)
-        a2.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_recall")}</div>'
+        a2.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("r_recall")}</div>'
                     f'<div class="kpi-v">{_pct(g, "tpr_recall", 2)}</div>'
                     f'<div class="kpi-s">{g.get("threshold_method") or t("missing")}</div></div>',
                     unsafe_allow_html=True)
-        a3.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_fpr")}</div>'
+        a3.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("r_fpr")}</div>'
                     f'<div class="kpi-v">{_pct(g, "fpr", 2)}</div>'
                     f'<div class="kpi-s">target {_pct(g, "target_fpr", 0)}</div></div>',
                     unsafe_allow_html=True)
-        a4.markdown(f'<div class="kpi"><div class="kpi-l">{t("r_prec")}</div>'
+        a4.markdown(f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("r_prec")}</div>'
                     f'<div class="kpi-v">{_pct(g, "precision", 2)}</div>'
                     f'<div class="kpi-s">F1 {_pct(g, "f1", 2)}</div></div>',
                     unsafe_allow_html=True)
@@ -2522,10 +3445,13 @@ with tab_r:
             tb = ad["is_benign"]
             tp = int((pred & ~tb).sum()); fn = int((~pred & ~tb).sum())
             fp = int((pred & tb).sum()); tn = int((~pred & tb).sum())
-            st.dataframe(pd.DataFrame(
-                [["Attack", tp, fn], ["Healthy", fp, tn]],
-                columns=["", "flagged", "not flagged"]).set_index(""),
-                width='stretch')
+            html_table(pd.DataFrame(
+                [["Attack" if LANG == "fr" else "Attack", tp, fn],
+                 ["Healthy" if LANG == "fr" else "Healthy", fp, tn]],
+                columns=["", "signalé" if LANG == "fr" else "flagged",
+                         "non signalé" if LANG == "fr" else "not flagged"]),
+                caption=t("conf_cap") if "conf_cap" in T else "",
+                first_col_header=True)
             st.caption(f"threshold = {thr:.3f} · FPR = {fp/max(fp+tn,1)*100:.2f} % "
                        f"· recall = {tp/max(tp+fn,1)*100:.2f} %")
 
@@ -2535,7 +3461,6 @@ with tab_r:
         try:
             _c3 = compare_three(target_fpr * 100.0, LANG)
             if _c3["rows"]:
-                st.caption(t("cmp3_intro", n=f"{_c3['n']:,}", fpr=f"{target_fpr*100:g}"))
                 _t3 = pd.DataFrame([{
                     t("cmp_col"): r["mode"],
                     t("cmp_alerts"): (t("n_a") if r["alerts"] is None
@@ -2546,141 +3471,151 @@ with tab_r:
                                       else f'{r["recall"]*100:.1f} %'),
                     t("cmp_scale"): detector_scales().get(r["key"], {}).get("kind", t("n_a")),
                 } for r in _c3["rows"]])
-                st.dataframe(_t3, width='stretch', hide_index=True)
+                html_table(_t3, caption=t("cmp3_intro", n=f"{_c3['n']:,}",
+                                          fpr=f"{target_fpr*100:g}"),
+                           na=t("n_a"), key="dl_cmp3",
+                           file_name="comparaison_echantillon_fixe.csv")
                 if _c3.get("manquants"):
                     st.warning(t("cmp_indispo", d=", ".join(_c3["manquants"])))
 
-                # rappel par famille inédite, pour voir où chaque détecteur cède
-                st.caption(t("cmp3_fam"))
+                # Rappel par famille inédite, pour voir où chaque détecteur
+                # cède. La légende est portée par le <caption> du tableau.
                 _f3 = pd.DataFrame([{
                     "famille": f,
                     **{r["mode"]: (f'{r["per"][f]*100:.1f} %' if f in r["per"]
                                    else t("n_a")) for r in _c3["rows"]},
                 } for f in _c3["fams"]])
-                st.dataframe(_f3, width='stretch', hide_index=True)
+                html_table(_f3, caption=t("cmp3_fam"), na=t("n_a"),
+                           key="dl_cmp3_fam", file_name="rappel_par_famille.csv")
                 st.caption(t("cmp_note"))
         except Exception as _e:
-            st.caption(f"comparaison indisponible : {_e}")
+            # Un message d'erreur doit dire quoi faire : l'exception seule
+            # laisse l'utilisateur devant un mur.
+            st.error(t("cmp_fail", e=str(_e)))
 
-        st.write("")
-        st.markdown(f"**{t('c_head')}**")
-        st.caption(t("c_intro"))
-        _cp = os.path.join(ROOT, "results", "contraste.json")
-        if os.path.exists(_cp):
-            _c = json.load(open(_cp, encoding="utf-8"))
-            _rows = []
-            for _fam, _v in sorted(_c["familles"].items(),
-                                   key=lambda kv: -kv[1]["supervise"]):
-                _rows.append({"famille": _fam,
-                              t("c_oc"): f'{_v["one_class"]*100:.1f} %',
-                              t("c_sv"): f'{_v["supervise"]*100:.1f} %'})
-            _rows.append({"famille": t("c_mean"),
-                          t("c_oc"): f'{_c["global"]["one_class"]*100:.1f} %',
-                          t("c_sv"): f'{_c["global"]["supervise"]*100:.1f} %'})
-            st.dataframe(pd.DataFrame(_rows), width='stretch', hide_index=True)
+    st.write("")
+    st.markdown(f"**{t('c_head')}**")
+    st.caption(t("c_intro"))
+    _cp = os.path.join(ROOT, "results", "contraste.json")
+    if os.path.exists(_cp):
+        _c = json.load(open(_cp, encoding="utf-8"))
+        _rows = []
+        for _fam, _v in sorted(_c["familles"].items(),
+                               key=lambda kv: -kv[1]["supervise"]):
+            _rows.append({"famille": _fam,
+                          t("c_oc"): f'{_v["one_class"]*100:.1f} %',
+                          t("c_sv"): f'{_v["supervise"]*100:.1f} %'})
+        _rows.append({"famille": t("c_mean"),
+                      t("c_oc"): f'{_c["global"]["one_class"]*100:.1f} %',
+                      t("c_sv"): f'{_c["global"]["supervise"]*100:.1f} %'})
+        html_table(pd.DataFrame(_rows), caption=t("c_intro"),
+                   key="dl_contraste", file_name="contraste_approches.csv")
 
-            _vf = _c.get("validation_par_famille") or {}
-            if _vf:
-                st.caption(t("c_lofo_h"))
-                _r2 = []
-                for _fam, _v in sorted(_vf.items(), key=lambda kv: -kv[1]["supervise"]):
-                    _r2.append({"famille": _fam,
-                                t("c_sv"): f'{_v["supervise"]*100:.1f} %',
-                                t("c_oc"): f'{_v["one_class"]*100:.1f} %'})
-                st.dataframe(pd.DataFrame(_r2), width='stretch', hide_index=True)
-                _pire = min(_vf, key=lambda k: _vf[k]["supervise"])
-                st.error(t("c_collapse", fam=_pire,
-                           pct=f'{_vf[_pire]["supervise"]*100:.1f}'))
+        _vf = _c.get("validation_par_famille") or {}
+        if _vf:
+            _r2 = []
+            for _fam, _v in sorted(_vf.items(), key=lambda kv: -kv[1]["supervise"]):
+                _r2.append({"famille": _fam,
+                            t("c_sv"): f'{_v["supervise"]*100:.1f} %',
+                            t("c_oc"): f'{_v["one_class"]*100:.1f} %'})
+            html_table(pd.DataFrame(_r2), caption=t("c_lofo_h"))
+            _pire = min(_vf, key=lambda k: _vf[k]["supervise"])
+            st.error(t("c_collapse", fam=_pire,
+                       pct=f'{_vf[_pire]["supervise"]*100:.1f}'))
+    else:
+        st.info(t("c_missing"))
+
+    st.write("")
+    st.caption(t("src_note", score=g.get("score", "?")))
+    st.markdown(f"### ⚠️ {t('a_head')}")
+    st.markdown(t("a_intro"))
+    triv = om.get("trivial_baselines", {})
+    if triv:
+        _au = _val(g, "auroc")
+        rowsm = ([{"method": t("a_model"), "auroc": round(_au, 4),
+                   "recall": _pct(g, "tpr_recall")}] if _au is not None else [])
+        for name, d in triv.items():
+            label = t("a_sum") if "somme" in name else t("a_lr")
+            rec = f'{d["recall"]*100:.1f} %' if "recall" in d else "—"
+            rowsm.append({"method": label, "auroc": round(d["auroc"], 4), "recall": rec})
+        dfm = pd.DataFrame(rowsm).rename(
+            columns={"method": t("a_method"), "auroc": t("a_auroc"),
+                     "recall": t("a_recall")})
+        html_table(dfm, caption=t("a_intro"), key="dl_baselines",
+                   file_name="baselines_triviales.csv")
+
+        best_triv = max(d["auroc"] for d in triv.values())
+        _au = _val(g, "auroc")
+        if _au is not None and best_triv >= _au - 0.02:
+            st.error(t("a_warn"))
         else:
-            st.info(t("c_missing"))
+            st.success(t("a_ok"))
 
-        st.write("")
-        st.caption(t("src_note", score=g.get("score", "?")))
-        st.markdown(f"#### ⚠️ {t('a_head')}")
-        st.markdown(t("a_intro"))
-        triv = om.get("trivial_baselines", {})
-        if triv:
-            _au = _val(g, "auroc")
-            rowsm = ([{"method": t("a_model"), "auroc": round(_au, 4),
-                       "recall": _pct(g, "tpr_recall")}] if _au is not None else [])
-            for name, d in triv.items():
-                label = t("a_sum") if "somme" in name else t("a_lr")
-                rec = f'{d["recall"]*100:.1f} %' if "recall" in d else "—"
-                rowsm.append({"method": label, "auroc": round(d["auroc"], 4), "recall": rec})
-            dfm = pd.DataFrame(rowsm).rename(
-                columns={"method": t("a_method"), "auroc": t("a_auroc"),
-                         "recall": t("a_recall")})
-            st.dataframe(dfm, width='stretch', hide_index=True)
+        # détail par classe de la baseline triviale
+        for name, d in triv.items():
+            if "recall_per_class" in d:
+                st.caption(f"« {t('a_sum')} » — "
+                           + " · ".join(f"{k}: {v*100:.1f} %"
+                                        for k, v in d["recall_per_class"].items()))
+                break
+    else:
+        st.info("Baselines absentes de results/metrics.json — relance `py 03_evaluation.py`.")
 
-            best_triv = max(d["auroc"] for d in triv.values())
-            _au = _val(g, "auroc")
-            if _au is not None and best_triv >= _au - 0.02:
-                st.error(t("a_warn"))
-            else:
-                st.success(t("a_ok"))
+    st.write("")
+    st.markdown(f"**{t('pv_head')}**")
+    st.caption(t("pv_intro"))
+    r_, f_ = _val(g, "tpr_recall"), _val(g, "fpr")
+    _ns, _na = _val(g, "n_samples"), _val(g, "n_anomaly")
+    if r_ is None or f_ is None or not _ns or _na is None:
+        st.info(t("pv_missing"))
+    else:
+        rows_pv = []
+        for pi, ctx in [(_na / _ns, "this test set"),
+                        (0.05, "monitored network"), (0.01, "filtered SOC"),
+                        (0.001, "real SOC"), (0.0001, "large operator")]:
+            den = r_ * pi + f_ * (1 - pi)
+            ppv = (r_ * pi / den) if den else 0.0
+            rows_pv.append({t("pv_prev"): f"{pi*100:.3f} %",
+                            t("pv_prec"): f"{ppv*100:.2f} %",
+                            t("pv_alert"): f"{(1-ppv)/ppv:.1f}" if ppv > 0 else "∞",
+                            t("pv_ctx"): ctx})
+        html_table(pd.DataFrame(rows_pv), caption=t("pv_intro"),
+                   key="dl_prevalence", file_name="precision_selon_prevalence.csv")
 
-            # détail par classe de la baseline triviale
-            for name, d in triv.items():
-                if "recall_per_class" in d:
-                    st.caption(f"« {t('a_sum')} » — "
-                               + " · ".join(f"{k}: {v*100:.1f} %"
-                                            for k, v in d["recall_per_class"].items()))
-                    break
-        else:
-            st.info("Baselines absentes de results/metrics.json — relance `py 03_evaluation.py`.")
-
-        st.write("")
-        st.markdown(f"**{t('pv_head')}**")
-        st.caption(t("pv_intro"))
-        r_, f_ = _val(g, "tpr_recall"), _val(g, "fpr")
-        _ns, _na = _val(g, "n_samples"), _val(g, "n_anomaly")
-        if r_ is None or f_ is None or not _ns or _na is None:
-            st.info(t("pv_missing"))
-        else:
-            rows_pv = []
-            for pi, ctx in [(_na / _ns, "this test set"),
-                            (0.05, "monitored network"), (0.01, "filtered SOC"),
-                            (0.001, "real SOC"), (0.0001, "large operator")]:
-                den = r_ * pi + f_ * (1 - pi)
-                ppv = (r_ * pi / den) if den else 0.0
-                rows_pv.append({t("pv_prev"): f"{pi*100:.3f} %",
-                                t("pv_prec"): f"{ppv*100:.2f} %",
-                                t("pv_alert"): f"{(1-ppv)/ppv:.1f}" if ppv > 0 else "∞",
-                                t("pv_ctx"): ctx})
-            st.dataframe(pd.DataFrame(rows_pv), width='stretch', hide_index=True)
-
-        st.write("")
-        st.markdown(f"**{t('r_baseline_h')}**")
-        st.caption(t("hist_note"))
-        st.caption(t("r_baseline_c"))
-        bl = []
-        abl = ablation_rows()
-        for r in abl:
-            bl.append({"method": r["label"], "auroc": round(r["auroc"], 4),
-                       "seeds": "3" if r.get("auroc_std", 0) > 0 else "1"})
-        sv = svdd_row()
-        if sv:
-            bl.append({"method": "Deep SVDD", "auroc": round(sv["auroc_zero_day"], 4), "seeds": "3"})
-            if sv.get("reference_supervised_auroc"):
-                bl.append({"method": "Supervised reference",
-                           "auroc": round(sv["reference_supervised_auroc"], 4), "seeds": "1"})
-        if bl:
-            dfb = pd.DataFrame(bl).sort_values("auroc", ascending=False)
-            st.dataframe(dfb, width='stretch', hide_index=True)
+    st.write("")
+    st.markdown(f"**{t('r_baseline_h')}**")
+    st.caption(t("hist_note"))
+    st.caption(t("r_baseline_c"))
+    bl = []
+    abl = ablation_rows()
+    for r in abl:
+        bl.append({"method": r["label"], "auroc": round(r["auroc"], 4),
+                   "seeds": "3" if r.get("auroc_std", 0) > 0 else "1"})
+    sv = svdd_row()
+    if sv:
+        bl.append({"method": "Deep SVDD", "auroc": round(sv["auroc_zero_day"], 4), "seeds": "3"})
+        if sv.get("reference_supervised_auroc"):
+            bl.append({"method": "Supervised reference",
+                       "auroc": round(sv["reference_supervised_auroc"], 4), "seeds": "1"})
+    if bl:
+        dfb = pd.DataFrame(bl).sort_values("auroc", ascending=False)
+        html_table(dfb, caption=t("r_baseline_c"), key="dl_ref",
+                   file_name="approches_de_reference.csv")
 
 
 # ══════════════════════════════════════════════════════════════════════
 #  4 · METHOD
 # ══════════════════════════════════════════════════════════════════════
 with tab_m:
+    st.markdown(f'<h2 class="tab-h">{t("tab_method")}</h2>', unsafe_allow_html=True)
     q1, q2 = st.columns(2)
     with q1:
-        st.markdown(f"#### {t('m_enc_h')}")
+        st.markdown(f"### {t('m_enc_h')}")
         st.markdown(t("m_enc"))
-        st.markdown(f"#### {t('m_score_h')}")
+        st.markdown(f"### {t('m_score_h')}")
         st.markdown(t("m_score"))
     with q2:
-        st.markdown(f"#### {t('m_abl_h')}")
+        st.markdown(f"### {t('m_abl_h')}")
         st.caption(t("hist_note"))
         st.caption(t("m_abl_c"))
         abl = ablation_rows()
@@ -2692,7 +3627,8 @@ with tab_m:
                 "Δ": (f'{r["auroc"] - base:+.4f}' if base is not None else "—"),
                 "±": (f'{r["auroc_std"]:.4f}' if r.get("auroc_std") else "—"),
             } for r in abl])
-            st.dataframe(dfx, width='stretch', hide_index=True)
+            html_table(dfx, caption=t("m_abl_c"), key="dl_ablation",
+                       file_name="ablation.csv")
         else:
             st.info("results/ablation.json missing — run `py 04_ablation.py`.")
 
@@ -2701,7 +3637,8 @@ with tab_m:
 #  5 · LIMITATIONS
 # ══════════════════════════════════════════════════════════════════════
 with tab_l:
-    st.markdown(f"#### {t('l_h')}")
+    st.markdown(f'<h2 class="tab-h">{t("tab_limit")}</h2>', unsafe_allow_html=True)
+    st.markdown(f"### {t('l_h')}")
     st.caption(t("l_intro"))
 
     _LIMITES = [
@@ -2717,7 +3654,7 @@ with tab_l:
 
     for _k, _st, _col in _LIMITES:
         st.markdown(
-            f'<div class="panel" style="margin-bottom:12px; border-left:3px solid {_col};">'
+            f'<div class="panel" lang="{LANG}" style="margin-bottom:12px; border-left:3px solid {_col};">'
             f'<div style="display:flex; justify-content:space-between; align-items:center;'
             f' margin-bottom:10px;">'
             f'<span style="font-weight:650; font-size:1.05rem; color:var(--fg-1);">{t(_k + "_t")}</span>'
@@ -2725,39 +3662,39 @@ with tab_l:
             f' color:{_col}; border:1px solid {_col}; border-radius:999px; padding:2px 10px;">'
             f'<span aria-hidden="true">{_SYM[_st]}</span> {_LBL[_st]}</span></div>'
             f'<div style="font-size:0.92rem; line-height:1.65; color:var(--fg-3); margin-bottom:12px;">'
-            f'{t(_k + "_a")}</div>'
+            f'{_md_html(t(_k + "_a"))}</div>'
             f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;'
             f' font-size:0.88rem; line-height:1.6;">'
             f'<div><div style="color:var(--fg-4); text-transform:uppercase; letter-spacing:0.08em;'
             f' font-size:0.9rem; font-weight:600; margin-bottom:5px;">{t("l_proof")}</div>'
-            f'<div style="color:var(--fg-2);">{t(_k + "_p")}</div></div>'
+            f'<div style="color:var(--fg-2);">{_md_html(t(_k + "_p"))}</div></div>'
             f'<div><div style="color:var(--fg-4); text-transform:uppercase; letter-spacing:0.08em;'
             f' font-size:0.9rem; font-weight:600; margin-bottom:5px;">{t("l_left")}</div>'
-            f'<div style="color:var(--fg-2);">{t(_k + "_r")}</div></div></div>'
+            f'<div style="color:var(--fg-2);">{_md_html(t(_k + "_r"))}</div></div></div>'
             f'</div>', unsafe_allow_html=True)
 
     # bilan chiffre
     st.write("")
     _b1, _b2, _b3, _b4 = st.columns(4)
     _b1.markdown(
-        f'<div class="kpi"><div class="kpi-l">{t("l_status_ok")}</div>'
+        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("l_status_ok")}</div>'
         f'<div class="kpi-v">1 / 5</div><div class="kpi-s">L2</div></div>',
         unsafe_allow_html=True)
     _b2.markdown(
-        f'<div class="kpi"><div class="kpi-l">{t("l_status_part")}</div>'
+        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("l_status_part")}</div>'
         f'<div class="kpi-v">2 / 5</div><div class="kpi-s">L3 · L5</div></div>',
         unsafe_allow_html=True)
     _b3.markdown(
-        f'<div class="kpi"><div class="kpi-l">{t("l_status_open")}</div>'
+        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("l_status_open")}</div>'
         f'<div class="kpi-v">2 / 5</div><div class="kpi-s">L1 · L4</div></div>',
         unsafe_allow_html=True)
     _b4.markdown(
-        f'<div class="kpi"><div class="kpi-l">{t("flows")}</div>'
+        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("flows")}</div>'
         f'<div class="kpi-v">5 495</div><div class="kpi-s">attaques évaluées</div></div>',
         unsafe_allow_html=True)
 
     st.markdown(
-        f'<div class="note" style="margin-top:14px;">{t("l_foot")}</div>',
+        f'<div class="note" style="margin-top:14px;">{_md_html(t("l_foot"))}</div>',
         unsafe_allow_html=True)
 
 
@@ -2793,16 +3730,19 @@ st.markdown(
 #  6 · AIDE / HELP
 # ══════════════════════════════════════════════════════════════════════
 with tab_h:
+    st.markdown(f'<h2 class="tab-h">{t("tab_help")}</h2>', unsafe_allow_html=True)
     def H(key: str) -> str:
         fr, en = HELP[key]
         return fr if LANG == "fr" else en
 
-    st.markdown(f"#### {H('h_intro')}")
+    st.markdown(f"### {H('h_intro')}")
 
     st.divider()
     st.markdown(f"### {H('h_steps_h')}")
     for _k in ("h_step1", "h_step2", "h_step3"):
-        st.markdown(f'<div class="panel" style="margin-bottom:10px;">{H(_k)}</div>',
+        st.markdown(
+            f'<div class="panel" lang="{LANG}" style="margin-bottom:10px;">'
+            f'{_md_html(H(_k))}</div>',
                     unsafe_allow_html=True)
 
     st.divider()
@@ -2813,7 +3753,7 @@ with tab_h:
                          (_c3, "h_mode3", "h_mode3_t")):
         with _col:
             st.markdown(
-                f'<div class="panel" style="height:100%;">'
+                f'<div class="panel" lang="{LANG}" style="height:100%;">'
                 f'<div style="font-weight:650;color:var(--fg-1);margin-bottom:8px;">'
                 f'{H(_b)}</div>'
                 f'<div style="font-size:0.92rem;color:var(--fg-2);">{H(_n)}</div>'
@@ -2834,4 +3774,3 @@ with tab_h:
     st.divider()
     st.markdown(f"### {H('h_a11y_h')}")
     st.markdown(H("h_a11y"))
-#ji ]]]fewsf
