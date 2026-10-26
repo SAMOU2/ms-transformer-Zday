@@ -1,0 +1,15 @@
+# Thème de l'application. Ce fichier ne code AUCUNE règle de mise en page :
+# il donne seulement à Streamlit les trois couleurs qu'il utilise pour ses
+# widgets natifs (curseur, cases, barres de défilement). Sans lui, ces
+# widgets gardent le rouge par défaut de Streamlit — et ici le rouge veut
+# dire « menace ».
+[theme]
+base = "light"
+primaryColor = "#58cc02"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f7f7f7"
+textColor = "#3c3c3c"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
