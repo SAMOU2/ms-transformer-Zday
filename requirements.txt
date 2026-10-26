@@ -3,7 +3,9 @@ numpy
 scikit-learn
 scipy
 torch
-streamlit
+# >= 1.46 : st.container(key=...) donne la classe CSS qui porte
+# le parcours (nœuds du chemin), et width='stretch' est utilisé partout.
+streamlit>=1.46
 pyarrow
 fastparquet
 matplotlib
