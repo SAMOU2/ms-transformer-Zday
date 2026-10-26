@@ -711,6 +711,25 @@ T = {
     "pc_done":      ("étape faite", "step done"),
     "pc_todo":      ("étape à venir", "step to come"),
 
+    # parcours façon maquette : nœuds, haltes, mascotte
+    "duo_step":     ("Étape {n}", "Step {n}"),
+    "jalon_a":      ("Halte · une analyse existe",
+                     "Checkpoint · an analysis exists"),
+    "jalon_b":      ("Halte · le parcours est complet",
+                     "Checkpoint · the path is complete"),
+    "jalon_off":    ("Halte · rien encore", "Checkpoint · nothing yet"),
+    "owl_hello":    ("Choisis une étape : je te suis. Rien n'est encore chargé, "
+                     "donc seules les deux premières sont ouvertes — les autres "
+                     "s'ouvrent quand la mesure existe vraiment.",
+                     "Pick a step and I'll follow. Nothing is loaded yet, so only "
+                     "the first two are open — the others open once the measurement "
+                     "actually exists."),
+    "owl_done":     ("Analyse faite : **{a}** alertes sur **{n}** flux, seuil "
+                     "{s}. Monte ou descends le long du chemin pour relire chaque "
+                     "étape.",
+                     "Analysis done: **{a}** alerts out of **{n}** flows, threshold "
+                     "{s}. Walk up or down the path to revisit any step."),
+
     "cmp_fail":     ("Comparaison impossible : {e}. Les trois détecteurs n'ont pas pu "
                      "être calculés sur ce lot. Vérifie que "
                      "`data/processed/X_test.npy` existe — sinon relance "
@@ -1242,75 +1261,98 @@ HELP = {
 st.markdown("""
 <style>
 /* ══════════════════════════════════════════════════════════════════
-   SYSTÈME DE DESIGN — CONTRASTE WCAG 2.1 NIVEAU AA
+   SYSTÈME DE DESIGN « PARCOURS » — CLAIR, ROND, CONTRASTÉ
    ──────────────────────────────────────────────────────────────────
-   Tous les couples texte/fond de ce thème ont été vérifiés :
-   ratio minimal 4,82:1 (AA exige 4,5:1 pour le texte courant).
-   Les statuts ne sont jamais portés par la seule couleur : chaque
-   badge associe un symbole (✓ ⚠ ✕) et un libellé textuel.
+   Tout le thème tient dans ce bloc : aucune feuille de style externe,
+   aucun dossier .streamlit à copier à côté de app.py. Les widgets natifs
+   (curseur, cases, boutons radio) sont repeints plus bas.
+
+   La page n'est plus un tableau de bord sombre : c'est un parcours.
+   Un bandeau d'unité vert, un chemin qui descend, des jalons à
+   atteindre. La forme change ; la règle de fond ne change pas :
+
+   · chaque couleur de texte est vérifiée sur son fond — le plus
+     faible couple du thème est à 4,54:1 (AA exige 4,5:1) ;
+   · aucun état n'est porté par la seule couleur : un symbole
+     (✓ ● 🔒 ✕ ◐) et un mot l'accompagnent toujours ;
+   · le vert vif #58cc02 sert de SURFACE, jamais de texte sur blanc.
+     Là où du texte doit s'écrire, on descend à #2c8000 (5,0:1) ou
+     on pose de l'encre sombre #16350a sur le vert clair (6,4:1) ;
+   · le bouton vert primaire utilise #3d8a00 : le blanc y garde
+     4,6:1, ce que #58cc02 ne permettrait pas (2,1:1).
    ══════════════════════════════════════════════════════════════════ */
 :root {
-  --bg:          #070b14;
-  --surface:     #0c1422;
-  --surface-2:   #101a2b;
-  --border:      #22304a;
-  --border-ui:   #4e6390;   /* composants interactifs — ratio 3:1 min */
-  --fg-1:        #f1f5f9;       /* 17,97:1 */
-  --fg-2:        #dbe4ef;   /* 15,33:1 */
-  --fg-3:        #aebdcd;   /* 10,27:1 */
-  --fg-4:        #8b9ab0;   /* 6,89:1  — labels, légendes */
-  --ok:          #5ee08a;   /* 11,72:1 */
-  --warn:        #f5c451;   /* 12,09:1 */
-  --info:        #7ab4f7;   /* 9,09:1  */
-  --danger:      #ff8f8f;   /* 8,98:1  */
-  --focus:       #7ab4f7;
+  /* surfaces */
+  --bg:          #ffffff;
+  --surface:     #ffffff;
+  --surface-2:   #f7f7f7;
+  --surface-3:   #f0f4f8;
+  --border:      #e5e5e5;
+  --border-ui:   #a8a8a8;   /* composants interactifs — ≥3:1 sur blanc */
+
+  /* texte */
+  --fg-1:        #3c3c3c;   /* 11,6:1 */
+  --fg-2:        #4b4b4b;   /*  9,0:1 */
+  --fg-3:        #5f5f5f;   /*  6,4:1 */
+  --fg-4:        #6f6f6f;   /*  4,77:1 — plancher AA, y compris sur les
+                               fonds teintés (#f7f7f7, #e8ffd6) */
+
+  /* états */
+  --ok:          #2c8000;   /*  5,0:1 */
+  --warn:        #8a5200;   /*  5,3:1 */
+  --info:        #0b63b8;   /*  6,0:1 */
+  --danger:      #c62828;   /*  5,6:1 */
+  --focus:       #0b6bcb;
+
+  /* vert du parcours — surface, ombre 3D, encre */
+  --duo:         #58cc02;
+  --duo-d:       #46a302;
+  --duo-dd:      #3a7f02;
+  --duo-btn:     #3d8a00;
+  --duo-ink:     #16350a;
+  --duo-soft:    #e8ffd6;
+  --duo-line:    #b8e986;
+
+  /* or des jalons */
+  --gold:        #ffc800;
+  --gold-d:      #e5a500;
+  --gold-dd:     #b88200;
+
   --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 34px;
-  --radius: 10px;
+  --radius: 16px;
+  --radius-s: 12px;
+  --shadow-card: 0 1px 0 rgba(0,0,0,0.04);
 }
 
-/* ---- base ---- */
+/* ---- base ------------------------------------------------------- */
 html { font-size: 16px; }
-.stApp { background: var(--bg) !important; color: var(--fg-2) !important; }
-
-/* ---- barre latérale : la même surface que les cartes -------------------
-   Le thème de .streamlit/config.toml la peint déjà ; cette règle la rend
-   juste même si le dossier de thème n'a pas été copié à côté de app.py
-   (c'est ce qui donnait un gris #262730, le gris par défaut de Streamlit). */
-[data-testid="stSidebar"] {
-  background: var(--surface) !important;
-  border-right: 1px solid var(--border) !important;
+body, .stApp, [data-testid="stAppViewContainer"] {
+  font-family: "Segoe UI", system-ui, -apple-system, "Trebuchet MS",
+               "Helvetica Neue", Arial, sans-serif;
 }
-
-/* ---- onglets : le soulignement prend la couleur d'accent ---------------
-   Par défaut il est rouge (#FF4B4B), et ici le rouge veut dire « menace ».
-   Un onglet actif ne doit pas annoncer un danger. */
-[data-baseweb="tab-highlight"] { background-color: var(--focus) !important; }
-[data-baseweb="tab-list"] { gap: 2px; border-bottom: 1px solid var(--border); }
-[data-baseweb="tab"] { color: var(--fg-4) !important; }
-[data-baseweb="tab"][aria-selected="true"] { color: var(--fg-1) !important; }
-[data-baseweb="tab"]:hover { color: var(--fg-2) !important; }
-[data-baseweb="tab"]:focus-visible {
-  outline: 2px solid var(--focus) !important; outline-offset: 2px; }
+.stApp { background: var(--bg) !important; color: var(--fg-2) !important; }
 .block-container { padding-top: 3.9rem;   /* dégage la barre d'outils fixe */
-                   padding-bottom: var(--sp-5); max-width: 1320px; }
-/* sur mobile la barre est plus basse : on récupère la place perdue */
-@media (max-width: 900px) { .block-container { padding-top: 3.4rem; } }
-h1,h2,h3,h4 { color: var(--fg-1) !important; letter-spacing: -0.015em;
-              font-weight: 650; line-height: 1.3; }
-p, li { color: var(--fg-2); line-height: 1.68; }
+                   padding-bottom: var(--sp-5); max-width: 1180px; }
+
+h1, h2, h3, h4 { color: var(--fg-1) !important; font-weight: 800;
+                 letter-spacing: -0.01em; line-height: 1.28; }
+h2 { font-size: 1.45rem !important; }
+h3 { font-size: 1.2rem !important; }
+p, li { color: var(--fg-2); line-height: 1.66; }
+a { color: var(--info); text-underline-offset: 2px; }
 hr { border-color: var(--border) !important; }
 
-/* ---- focus visible : indispensable au clavier ---- */
+/* ---- focus visible : indispensable au clavier -------------------- */
 a:focus-visible, button:focus-visible, [tabindex]:focus-visible,
 input:focus-visible, select:focus-visible,
 div[role="radiogroup"] label:focus-visible,
 .stTabs [role="tab"]:focus-visible {
   outline: 3px solid var(--focus) !important;
   outline-offset: 3px !important;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-/* ---- respect de la préférence système ---- */
+/* ---- respect de la préférence système ---------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -1320,283 +1362,562 @@ div[role="radiogroup"] label:focus-visible,
   }
 }
 
-/* ---- en-tête ---- */
-.eyebrow { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
-           color: var(--fg-4); margin-bottom: var(--sp-1); font-weight: 600; }
-.proj-title { font-size: 1.7rem; font-weight: 700; color: var(--fg-1);
-              line-height: 1.22; letter-spacing: -0.02em; margin: 0; }
-.proj-sub { font-size: 0.94rem; color: var(--fg-3); margin-top: var(--sp-2);
+/* ---- en-tête ----------------------------------------------------- */
+.eyebrow { display: inline-block; font-size: 0.72rem; letter-spacing: 0.12em;
+           text-transform: uppercase; color: var(--duo-dd); font-weight: 800;
+           background: var(--duo-soft); border: 1.5px solid var(--duo-line);
+           border-radius: 999px; padding: 3px 11px; margin-bottom: var(--sp-2); }
+.proj-title { font-size: 2.05rem; font-weight: 800; color: var(--fg-1);
+              line-height: 1.16; letter-spacing: -0.022em; margin: 0; }
+.proj-sub { font-size: 1rem; color: var(--fg-3); margin-top: var(--sp-2);
             line-height: 1.6; max-width: 64ch; }
 
-/* ---- badges d'état : symbole + libellé, jamais la couleur seule ---- */
+/* ---- badges d'état : symbole + libellé, jamais la couleur seule -- */
 .badge { display: inline-flex; align-items: center; gap: 6px;
-         font-size: 0.8rem; font-weight: 600; padding: 5px 12px;
+         font-size: 0.78rem; font-weight: 700; padding: 4px 11px;
          border-radius: 999px; margin-right: var(--sp-1); margin-top: var(--sp-2);
-         border: 1px solid var(--border-ui); background: var(--surface);
-         color: var(--fg-2); letter-spacing: 0.01em; }
-.badge-ok   { border-color: #2f6b45; color: var(--ok); background: #08190f; }
-.badge-warn { border-color: #7a5c15; color: var(--warn); background: #191204; }
-.badge-info { border-color: #2c4f7a; color: var(--info); background: #08131f; }
+         border: 1.5px solid var(--border); background: var(--surface);
+         color: var(--fg-2); }
+.badge-ok   { border-color: #b6dfa0; color: var(--ok);   background: #f4fbe9; }
+.badge-warn { border-color: #eccf9b; color: var(--warn); background: #fdf6e8; }
+.badge-info { border-color: #b6d3ee; color: var(--info); background: #eef6fd; }
 
-/* ---- cartes de mesure ---- */
-.kpi { background: var(--surface); border: 1px solid var(--border);
-       border-radius: var(--radius); padding: var(--sp-3); text-align: center; }
-.kpi-v { font-size: 1.7rem; font-weight: 700; color: var(--fg-1);
+/* ══════════════════════════════════════════════════════════════════
+   BOUTONS — la touche la plus reconnaissable de la maquette :
+   une pastille épaisse qui s'enfonce de 4 px quand on clique.
+   ══════════════════════════════════════════════════════════════════ */
+.stButton > button, .stDownloadButton > button, .stFormSubmitButton > button,
+[data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
+  border-radius: var(--radius-s) !important;
+  border: 2px solid var(--border) !important;
+  border-bottom-width: 4px !important;
+  background: var(--surface) !important;
+  color: var(--fg-1) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem !important;
+  padding: 9px 16px !important;
+  transition: transform 60ms ease, border-bottom-width 60ms ease,
+              background 120ms ease;
+  box-shadow: none !important;
+}
+.stButton > button:hover, .stDownloadButton > button:hover,
+.stFormSubmitButton > button:hover,
+[data-testid="stBaseButton-secondary"]:hover {
+  background: var(--surface-2) !important;
+  color: var(--fg-1) !important;
+  border-color: #d4d4d4 !important;
+}
+.stButton > button:active, .stDownloadButton > button:active,
+.stFormSubmitButton > button:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px !important;
+}
+/* bouton primaire : le seul plein, et le seul à porter du blanc */
+[data-testid="stBaseButton-primary"],
+.stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
+  background: var(--duo-btn) !important;
+  border-color: var(--duo-dd) !important;
+  color: #ffffff !important;
+}
+[data-testid="stBaseButton-primary"]:hover,
+.stButton > button[kind="primary"]:hover {
+  background: #347800 !important;
+  color: #ffffff !important;
+}
+.stButton > button:disabled, [data-testid="stBaseButton-secondary"]:disabled {
+  opacity: 1 !important;
+  background: var(--surface-2) !important;
+  color: var(--fg-4) !important;
+  border-color: var(--border) !important;
+  cursor: not-allowed;
+}
+
+/* ---- champs de formulaire : arrondis, bordés, lisibles ---------- */
+[data-baseweb="select"] > div, [data-baseweb="input"] > div,
+.stTextInput input, .stNumberInput input, [data-testid="stFileUploader"] section {
+  border-radius: var(--radius-s) !important;
+  border: 2px solid var(--border) !important;
+  background: var(--surface) !important;
+}
+[data-testid="stFileUploader"] section { border-style: dashed !important; }
+div[role="radiogroup"] label {
+  border: 2px solid var(--border); border-radius: var(--radius-s);
+  padding: 6px 12px; background: var(--surface);
+}
+div[role="radiogroup"] label:has(input:checked) {
+  border-color: var(--duo); background: var(--duo-soft);
+}
+[data-testid="stSegmentedControl"] button,
+[data-testid="stButtonGroup"] button {
+  border-radius: 999px !important; font-weight: 700 !important;
+}
+
+/* ---- widgets natifs : l'accent rouge de Streamlit devient vert ----
+   Streamlit peint le curseur, la case cochée et le point du bouton radio
+   avec sa couleur primaire, rouge #FF4B4B par défaut. Ici le rouge veut
+   dire « menace » : un curseur de réglage ne doit pas annoncer un danger.
+   Ces règles remplacent le fichier de thème de Streamlit — l'application
+   tient ainsi dans un seul fichier, sans dossier .streamlit à copier. */
+[data-testid="stSlider"] [role="slider"] {
+  background-color: var(--duo-d) !important;
+  box-shadow: 0 0 0 2px #ffffff, 0 2px 0 var(--duo-dd) !important;
+}
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stSliderTrack"],
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stSliderTrackFill"] {
+  background: var(--duo) !important;
+}
+[data-testid="stSlider"] [data-testid="stThumbValue"] {
+  color: var(--duo-dd) !important; font-weight: 800 !important;
+}
+[data-testid="stCheckbox"] [data-baseweb="checkbox"] span[aria-checked="true"],
+[data-testid="stCheckbox"] input:checked + span {
+  background-color: var(--duo-d) !important;
+  border-color: var(--duo-dd) !important;
+}
+div[role="radiogroup"] [data-baseweb="radio"] div[aria-checked="true"],
+div[role="radiogroup"] input:checked + div {
+  background-color: var(--duo-d) !important;
+  border-color: var(--duo-dd) !important;
+}
+/* les messages natifs : même famille de couleurs, bord gauche franc */
+[data-testid="stAlert"] [data-testid="stAlertContentInfo"] { color: var(--fg-2); }
+
+/* ---- onglets : une rangée de pastilles, pas un soulignement ----- */
+[data-baseweb="tab-list"] {
+  gap: 6px; border-bottom: 2px solid var(--border); padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+[data-baseweb="tab-highlight"] { display: none !important; }
+[data-baseweb="tab"] {
+  border: 2px solid var(--border) !important;
+  border-radius: 999px !important;
+  padding: 5px 15px !important;
+  color: var(--fg-3) !important;
+  font-weight: 700 !important;
+  font-size: 0.87rem !important;
+  background: var(--surface) !important;
+}
+[data-baseweb="tab"]:hover { color: var(--fg-1) !important;
+                             background: var(--surface-2) !important; }
+[data-baseweb="tab"][aria-selected="true"] {
+  color: #ffffff !important;
+  background: var(--duo-btn) !important;
+  border-color: var(--duo-dd) !important;
+}
+
+/* ---- encadrés natifs : couleur douce, bord gauche franc --------- */
+[data-testid="stAlert"] {
+  border-radius: var(--radius-s) !important;
+  border: 2px solid var(--border) !important;
+  border-left-width: 5px !important;
+  color: var(--fg-2) !important;
+}
+[data-testid="stExpander"] {
+  border: 2px solid var(--border) !important;
+  border-radius: var(--radius-s) !important;
+  background: var(--surface);
+}
+[data-testid="stExpander"] summary { font-weight: 700; color: var(--fg-1); }
+[data-testid="stExpander"] summary:hover { color: var(--duo-dd); }
+
+/* ══════════════════════════════════════════════════════════════════
+   BANDEAU D'UNITÉ — la carte verte de la maquette.
+   Le fond est posé sur le bloc horizontal, pas sur le texte : les deux
+   colonnes (titre + bouton GUIDE) forment ainsi UNE seule carte.
+   ══════════════════════════════════════════════════════════════════ */
+/* Le vert du bandeau est un vert de pelouse ASSOMBRI (#3a8400) et non le
+   #58cc02 du parcours : sur ce dernier, du blanc ne tient que 2,1:1 et du
+   texte sombre 4,3:1 — aucun des deux n'atteint AA. Sur #3a8400, le blanc
+   tient 4,7:1, ce qui autorise un titre ET un sous-titre blancs. Le vert
+   vif reste présent juste en dessous, dans les nœuds du chemin. */
+[class*="st-key-duo_unit_"] {
+  background: #3a8400;
+  border: 2px solid #2f7000;
+  border-top: 3px solid #58cc02;
+  border-radius: 18px;
+  padding: 14px 20px;
+  box-shadow: 0 4px 0 #2f7000;
+}
+[class*="st-key-duo_unit_"] [data-testid="stHorizontalBlock"] {
+  align-items: center; gap: 12px;
+}
+.unit { background: transparent; border: 0; padding: 0; border-radius: 0; }
+.unit-k { display: inline-block; font-size: 0.68rem; font-weight: 800;
+          letter-spacing: 0.14em; text-transform: uppercase; color: var(--duo-ink);
+          background: #eaffd6; border-radius: 999px; padding: 2px 10px;
+          margin-bottom: 6px; }
+.unit-t { color: #ffffff; font-weight: 800; font-size: 1.22rem;
+          letter-spacing: 0.01em; }
+.unit-s { color: #ffffff; font-size: 0.88rem; font-weight: 600;
+          margin-top: 3px; }
+.unit-s strong, .unit-s code { color: #ffffff; }
+.unit-p { display: flex; flex-wrap: wrap; align-items: center; gap: 9px;
+          margin-top: var(--sp-2); }
+.unit-pl { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+           color: #ffffff; font-weight: 800; }
+.unit-dots { display: inline-flex; gap: 5px; }
+.u-dot { width: 10px; height: 10px; border-radius: 999px;
+         border: 1.5px solid #ffffff; background: transparent; }
+.u-dot.u-on { background: #ffffff; border-color: #ffffff; }
+.unit-pn { font-size: 0.76rem; color: #ffffff; font-weight: 700; }
+
+/* le bouton GUIDE, à droite du bandeau : pastille blanche */
+[class*="st-key-duo_unit_"] [data-testid="stPopover"] button {
+  background: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  border-bottom-width: 4px !important;
+  border-bottom-color: #cfe8b8 !important;
+  color: var(--duo-ink) !important;
+  border-radius: var(--radius-s) !important;
+  font-weight: 800 !important;
+  width: 100%;
+}
+[class*="st-key-duo_unit_"] [data-testid="stPopover"] button:hover {
+  background: #f6ffef !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LE PARCOURS — cœur de la maquette.
+   Sept nœuds qui descendent en zigzag, reliés par un trait pointillé,
+   avec deux jalons dorés et une mascotte qui commente l'état réel.
+   ══════════════════════════════════════════════════════════════════ */
+/* la colonne qui contient le chemin reçoit un cadre de carte */
+[data-testid="stColumn"]:has(.pc-mark) {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  padding: var(--sp-3) var(--sp-2) var(--sp-4);
+}
+.pc-mark { display: none; }
+/* Les blocs de Streamlit sont espacés d'un rem : dans un chemin de sept
+   nœuds, cela ferait deux écrans de vide. La colonne du parcours resserre
+   donc ses espacements, elle seule. */
+[data-testid="stColumn"]:has(.duo-path) [data-testid="stVerticalBlock"] {
+  gap: 0.18rem !important;
+}
+
+/* Ligne de nœuds : cinq cellules égales.
+   Le ciblage passe par le conteneur à clé `duo_row_<n>` que Streamlit
+   expose en classe `st-key-duo_row_<n>`. C'est le seul sélecteur précis
+   ici : `:has(.duo-row)` aurait aussi attrapé les blocs PARENTS, et la
+   grande colonne de gauche aurait hérité de la largeur d'une cellule. */
+[class*="st-key-duo_row_"] [data-testid="stHorizontalBlock"] {
+  gap: 0 !important;
+  align-items: flex-start;
+}
+[class*="st-key-duo_row_"] [data-testid="stColumn"],
+[class*="st-key-duo_row_"] [data-testid="column"] {
+  flex: 1 1 0 !important; width: auto !important; min-width: 0 !important;
+  display: flex; flex-direction: column; align-items: center;
+}
+[class*="st-key-duo_row_"] [data-testid="stVerticalBlock"] { gap: 0 !important; }
+
+/* le nœud : un disque épais, ombré vers le bas, qui s'enfonce au clic */
+[class*="st-key-pcb_"] { display: flex; justify-content: center; }
+[class*="st-key-pcb_"] button {
+  width: 68px !important; height: 68px !important; min-height: 68px !important;
+  min-width: 68px !important; flex: 0 0 auto !important;
+  border-radius: 50% !important;
+  padding: 0 !important; font-size: 1.7rem !important; font-weight: 800 !important;
+  line-height: 1 !important;
+  display: flex; align-items: center; justify-content: center;
+  border: 0 !important;
+  background: var(--duo-d) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 0 var(--duo-dd) !important;
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+[class*="st-key-pcb_"] button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 0 var(--duo-dd) !important;
+  background: var(--duo) !important;
+}
+[class*="st-key-pcb_"] button:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--duo-dd) !important;
+}
+/* état terminé : vert franc, coche blanche */
+[class*="st-key-pcb_done"] button { background: var(--duo-d) !important; }
+/* état courant : anneau bleu + halo, et une petite respiration */
+[class*="st-key-pcb_cur"] button {
+  background: var(--duo-btn) !important;
+  box-shadow: 0 6px 0 #2c6a00, 0 0 0 6px #cfe8ff !important;
+  animation: duo-bob 1.8s ease-in-out infinite;
+}
+@keyframes duo-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+/* état ouvert mais pas commencé : contour clair sur fond blanc */
+[class*="st-key-pcb_open"] button {
+  background: #ffffff !important;
+  color: var(--duo-dd) !important;
+  border: 3px solid var(--duo) !important;
+  box-shadow: 0 6px 0 #d9f2c4 !important;
+}
+[class*="st-key-pcb_open"] button:hover {
+  background: var(--duo-soft) !important; color: var(--duo-dd) !important;
+}
+/* état verrouillé : gris, pointillés, cadenas */
+[class*="st-key-pcb_lock"] button {
+  background: #f1f1f1 !important;
+  color: #6f6f6f !important;
+  border: 3px dashed #cfcfcf !important;
+  box-shadow: 0 6px 0 #e3e3e3 !important;
+  font-size: 1.15rem !important;
+}
+[class*="st-key-pcb_lock"] button:hover {
+  background: #eaeaea !important; color: #4b4b4b !important;
+}
+[class*="st-key-pcb_"] button:focus-visible {
+  outline: 3px solid var(--focus) !important; outline-offset: 5px !important;
+}
+
+/* Nom + statut sous le nœud. Le libellé est plus large que la cellule
+   qui le porte : il déborde
+   symétriquement, ce qui le centre sous le nœud quelle que soit la
+   position de celui-ci dans le zigzag. */
+.duo-lab { --w: 180px; width: var(--w); text-align: center; margin-top: 8px;
+           margin-left: calc(50% - var(--w) / 2); }
+.duo-lab b { display: block; color: var(--fg-1); font-size: 0.83rem;
+             font-weight: 800; line-height: 1.25; }
+.duo-lab .duo-k { display: block; color: var(--fg-4); font-size: 0.7rem;
+                  font-weight: 700; letter-spacing: 0.08em;
+                  text-transform: uppercase; margin-bottom: 1px; }
+.duo-sub { display: block; color: var(--fg-3); font-size: 0.74rem;
+           line-height: 1.3; margin-top: 2px; }
+.duo-now-pill {
+  display: block; margin: 6px auto 0; width: fit-content;
+  background: #ffffff; border: 2px solid var(--duo);
+  color: var(--duo-dd); font-size: 0.66rem; font-weight: 800;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  border-radius: 999px; padding: 2px 10px;
+  box-shadow: 0 2px 0 #d9f2c4;
+}
+.duo-lock-pill {
+  display: block; margin: 6px auto 0; width: fit-content;
+  background: var(--surface-2); border: 2px solid var(--border);
+  color: #6f6f6f; font-size: 0.66rem; font-weight: 800;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  border-radius: 999px; padding: 2px 10px;
+}
+
+/* le trait pointillé entre deux nœuds : un SVG qui s'étire avec la
+   carte, dessiné dans la couleur de l'état des deux nœuds qu'il relie */
+.duo-link { line-height: 0; }
+.duo-link svg { display: block; width: 100%; height: 30px; }
+.duo-link .ln { fill: none; stroke: var(--border-ui); stroke-width: 2.5;
+                stroke-dasharray: 1 9; stroke-linecap: round; }
+.duo-link.done .ln { stroke: var(--duo-d); }
+.duo-link.cur  .ln { stroke: var(--duo-btn); }
+
+/* jalon : le coffre de la maquette, qui s'ouvre sur un vrai événement */
+.duo-jalon { display: flex; flex-direction: column; align-items: center;
+             gap: 4px; margin: 4px auto 6px; }
+.duo-jalon svg { width: 70px; height: 70px; }
+.duo-jalon .jl { font-size: 0.71rem; font-weight: 800; letter-spacing: 0.06em;
+                 text-transform: uppercase; color: var(--fg-4); }
+.duo-jalon.on .jl { color: #8a5b00; }   /* or sombre : 5,9:1 sur blanc */
+
+/* mascotte + bulle : ce que la mascotte dit est l'état réel du lot */
+.duo-mascotte { display: flex; align-items: flex-start; gap: 10px;
+                margin: 0 0 var(--sp-2); }
+.duo-mascotte svg { flex: 0 0 auto; }
+.duo-bubble {
+  position: relative; flex: 1 1 auto;
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: 16px; padding: 9px 13px;
+  color: var(--fg-2); font-size: 0.83rem; line-height: 1.45;
+  box-shadow: 0 3px 0 var(--surface-3);
+}
+.duo-bubble::before {
+  content: ""; position: absolute; left: -9px; top: 18px;
+  width: 14px; height: 14px; background: var(--surface);
+  border-left: 2px solid var(--border); border-bottom: 2px solid var(--border);
+  transform: rotate(45deg);
+}
+.duo-bubble b { color: var(--fg-1); }
+
+/* progression du parcours : une barre franche, avec le compte écrit */
+.pc-prog { margin: var(--sp-1) 0 var(--sp-3); }
+.pc-prog-l { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+             color: var(--fg-4); margin-bottom: 5px; font-weight: 800; }
+.pc-prog-b { height: 14px; border-radius: 999px; background: var(--surface-3);
+             border: 2px solid var(--border); overflow: hidden; }
+.pc-prog-b span { display: block; height: 100%; border-radius: 999px;
+                  background: var(--duo-d);
+                  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.12); }
+
+/* légende du parcours */
+.pc-legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+             margin: var(--sp-3) 0 var(--sp-1); font-size: 0.74rem;
+             color: var(--fg-3); }
+.pc-legend span { border: 1.5px solid var(--border); border-radius: 999px;
+                  padding: 2px 9px; background: var(--surface); }
+.pc-legend b { color: var(--fg-1); }
+.pc-legend-n { color: var(--fg-4); font-style: italic; border: 0 !important;
+               background: none !important; padding-left: 0 !important; }
+
+/* titres du bloc parcours */
+.pc-path-h { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+             color: var(--fg-4); font-weight: 800; margin: 0 0 4px; text-align: center; }
+.pc-path-l { font-size: 0.8rem; color: var(--fg-4); text-align: center;
+             margin: 0 0 var(--sp-2); line-height: 1.4; }
+
+/* en-tête du panneau de droite : où l'on est, puis le titre de l'étape */
+.pc-panel-h { display: inline-block; font-size: 0.7rem; letter-spacing: 0.12em;
+              text-transform: uppercase; color: var(--duo-dd); font-weight: 800;
+              background: var(--duo-soft); border: 1.5px solid var(--duo-line);
+              border-radius: 999px; padding: 3px 12px; margin: 0 0 8px; }
+.pc-do { color: var(--fg-2); font-size: 0.97rem; line-height: 1.55;
+         margin: -2px 0 var(--sp-3); max-width: 62ch; }
+
+/* clic sur un cadenas : ce que le verrou fait, et ne fait pas */
+.u-lock { background: #fdf6e8; border: 2px solid #eccf9b;
+          border-radius: var(--radius-s); padding: var(--sp-3);
+          margin-top: var(--sp-2); }
+.u-lock-h { color: var(--warn); font-weight: 800; font-size: 0.8rem;
+            letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+.u-lock-b { color: var(--fg-2); font-size: 0.86rem; line-height: 1.55; }
+.u-lock-g { color: var(--fg-4); font-size: 0.78rem; font-style: italic; margin-top: 6px; }
+
+/* ce qui est mémorisé entre les étapes */
+.u-mem { background: var(--surface-2); border: 2px solid var(--border);
+         border-radius: var(--radius-s); padding: var(--sp-3); margin-top: var(--sp-3); }
+.u-mem-h { color: var(--fg-4); font-size: 0.72rem; letter-spacing: 0.12em;
+           text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
+.u-mem ul { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 0.86rem; }
+.u-mem li { margin-bottom: 3px; }
+
+/* ---- cartes de mesure ------------------------------------------- */
+.kpi { background: var(--surface); border: 2px solid var(--border);
+       border-radius: var(--radius); padding: var(--sp-3);
+       text-align: center; box-shadow: 0 3px 0 var(--surface-3); }
+.kpi-v { font-size: 1.75rem; font-weight: 800; color: var(--fg-1);
          line-height: 1.15; font-variant-numeric: tabular-nums; }
-.kpi-l { font-size: 0.78rem; color: var(--fg-4); letter-spacing: 0.08em;
-         text-transform: uppercase; margin-bottom: var(--sp-1); font-weight: 600; }
-.kpi-s { font-size: 0.82rem; color: var(--fg-3); margin-top: var(--sp-1); }
+.kpi-l { font-size: 0.72rem; color: var(--fg-4); letter-spacing: 0.09em;
+         text-transform: uppercase; margin-bottom: var(--sp-1); font-weight: 800; }
+.kpi-s { font-size: 0.8rem; color: var(--fg-3); margin-top: var(--sp-1); }
 
-/* ---- panneaux ---- */
-.panel { background: var(--surface); border: 1px solid var(--border);
-         border-radius: var(--radius); padding: var(--sp-3) var(--sp-3);
-         color: var(--fg-2); line-height: 1.66; }
-.panel-accent { border-left: 3px solid var(--info); }
-.pitch { background: var(--surface-2); border: 1px solid #2c4f7a;
-         border-left: 3px solid var(--info); border-radius: var(--radius);
-         padding: var(--sp-3) var(--sp-4); }
+/* ---- panneaux ---------------------------------------------------- */
+.panel { background: var(--surface); border: 2px solid var(--border);
+         border-radius: var(--radius); padding: var(--sp-3);
+         color: var(--fg-2); line-height: 1.66; box-shadow: 0 3px 0 var(--surface-3); }
+.panel-accent { border-left: 5px solid var(--duo); }
+.pitch { background: var(--duo-soft); border: 2px solid var(--duo-line);
+         border-radius: var(--radius); padding: var(--sp-3) var(--sp-4);
+         color: var(--fg-2); }
 
-/* ---- encadrés ---- */
-.note { background: var(--surface); border: 1px solid var(--border);
-        border-left: 3px solid var(--border-ui); border-radius: 8px;
+/* ---- encadrés ---------------------------------------------------- */
+.note { background: var(--surface-2); border: 2px solid var(--border);
+        border-left: 5px solid var(--border-ui); border-radius: var(--radius-s);
         padding: var(--sp-2) var(--sp-3); font-size: 0.9rem; color: var(--fg-3);
         line-height: 1.65; }
-.note-warn { border-left-color: var(--warn); background: #16100240; }
+.note-warn { border-left-color: var(--gold-d); background: #fffdf3; }
 
-/* ---- pied de page ---- */
-.foot { border-top: 1px solid var(--border); margin-top: var(--sp-4);
-        padding-top: var(--sp-2); font-size: 0.82rem; color: var(--fg-4);
+/* ---- pied de page ------------------------------------------------ */
+.foot { border-top: 2px solid var(--border); margin-top: var(--sp-4);
+        padding-top: var(--sp-2); font-size: 0.8rem; color: var(--fg-4);
         line-height: 2; }
-.foot code { color: var(--fg-3); background: var(--surface-2);
-             padding: 2px 6px; border-radius: 4px; font-size: 0.95em; }
+.foot code { color: var(--fg-2); background: var(--surface-2);
+             padding: 2px 6px; border-radius: 6px; font-size: 0.95em; }
 
-.mono { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
-/* ---- tableaux : lisibilité et densité ---- */
-div[data-testid="stDataFrame"] { border: 1px solid var(--border);
-                                 border-radius: 8px; }
-
-/* ---- tableaux HTML sémantiques --------------------------------------
-   Un <table> est lu par un lecteur d'écran ligne par ligne et colonne par
-   colonne ; la grille canvas de Streamlit ne l'est pas. C'est pourquoi les
-   tableaux du chemin critique sont écrits en HTML : <caption> annonce le
-   sujet, <th scope="col"> les entêtes de colonne, <th scope="row"> le nom
-   de la ligne. Aucune information n'y repose sur la couleur seule. */
-.tbl { width: 100%; border-collapse: collapse; margin: var(--sp-2) 0 var(--sp-3);
-       font-size: 0.94rem; }
-.tbl caption { text-align: left; color: var(--fg-3); font-size: 0.9rem;
+/* ---- tableaux ---------------------------------------------------- */
+div[data-testid="stDataFrame"] { border: 2px solid var(--border);
+                                 border-radius: var(--radius-s); }
+.tbl-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tbl { width: 100%; border-collapse: separate; border-spacing: 0;
+       margin: var(--sp-2) 0 var(--sp-3); font-size: 0.92rem;
+       border: 2px solid var(--border); border-radius: var(--radius-s);
+       overflow: hidden; }
+.tbl caption { text-align: left; color: var(--fg-3); font-size: 0.88rem;
                padding: 0 0 var(--sp-2); }
-.tbl th, .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--border);
+.tbl th, .tbl td { padding: 9px 12px; border-bottom: 1px solid var(--border);
                    text-align: right; vertical-align: top; }
-.tbl th[scope="row"], .tbl th:first-child, .tbl td:first-child {
-  text-align: left; }
-.tbl thead th { color: var(--fg-1); font-weight: 650; background: var(--surface);
-                border-bottom: 2px solid var(--border-ui); }
-.tbl th[scope="row"] { color: var(--fg-2); font-weight: 600; }
+.tbl th[scope="row"], .tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl thead th { color: var(--fg-1); font-weight: 800; background: var(--surface-2);
+                border-bottom: 2px solid var(--border); }
+.tbl th[scope="row"] { color: var(--fg-1); font-weight: 700; }
 .tbl td { color: var(--fg-2); font-variant-numeric: tabular-nums; }
-.tbl tbody tr:hover { background: var(--surface-2); }
+.tbl tbody tr:hover { background: #fbfdf7; }
+.tbl tbody tr:last-child th, .tbl tbody tr:last-child td { border-bottom: 0; }
 .tbl .na { color: var(--fg-4); font-style: italic; }
 
-/* ---- titre de section d'onglet : c'est le h2 qui manquait ------------
-   Le document passait de h1 (titre du projet) à h3/h4 : la carte des
-   titres sautait un niveau, et la navigation par titres d'un lecteur
-   d'écran (touche H) annonçait une structure fausse. Chaque onglet porte
-   désormais son h2, discret mais réel. */
-.tab-h { font-size: 0.78rem !important; letter-spacing: 0.12em;
-         text-transform: uppercase; color: var(--fg-4) !important;
-         font-weight: 700; margin: 0 0 var(--sp-2) !important;
-         padding-bottom: var(--sp-1);
-         border-bottom: 1px solid var(--border); }
-/* dans la barre latérale, le titre de section reste sobre */
-[data-testid="stSidebar"] h2 { font-size: 1.05rem !important;
-                               letter-spacing: 0.02em; margin-bottom: 4px; }
+/* ---- titre de section d'onglet ---------------------------------- */
+.tab-h { display: inline-block; font-size: 0.7rem !important;
+         letter-spacing: 0.14em; text-transform: uppercase;
+         color: var(--duo-dd) !important; font-weight: 800;
+         margin: 0 0 var(--sp-2) !important; padding: 3px 11px;
+         background: var(--duo-soft); border: 1.5px solid var(--duo-line);
+         border-radius: 999px; }
 
-/* ---- mobile : sous 900 px, tout doit tenir ---------------------------
-   Streamlit garde ses colonnes côte à côte sur un téléphone : à 380 px,
-   un tableau à 5 colonnes devient illisible et les cartes se compriment
-   jusqu'à l'écrasement du texte. On empile donc les colonnes, et on rend
-   les tableaux défilables horizontalement plutôt que tronqués. */
-.tbl-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* ══════════════════════════════════════════════════════════════════
+   BARRE LATÉRALE — les réglages, séparés des résultats
+   ══════════════════════════════════════════════════════════════════ */
+[data-testid="stSidebar"] {
+  background: var(--surface-2) !important;
+  border-right: 2px solid var(--border) !important;
+}
+[data-testid="stSidebar"] h2 { font-size: 1.05rem !important;
+                               letter-spacing: 0.01em; margin-bottom: 4px;
+                               color: var(--fg-1) !important; }
+[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button {
+  background: var(--duo-btn) !important; border-color: var(--duo-dd) !important;
+  color: #ffffff !important;
+}
+[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button:hover {
+  background: #347800 !important; color: #ffffff !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE — sous 900 px, les colonnes s'empilent, SAUF le chemin :
+   un parcours empilé en sept blocs ne montrerait plus un parcours.
+   ══════════════════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
   .block-container { padding-left: 0.7rem; padding-right: 0.7rem; }
   [data-testid="column"], [data-testid="stColumn"] {
     flex: 1 1 100% !important; width: 100% !important;
     min-width: 100% !important;
   }
-  .tbl { font-size: 0.86rem; }
+  /* exception : les cellules du chemin gardent leur largeur — un parcours
+     empilé en cinq blocs ne serait plus un parcours */
+  [class*="st-key-duo_row_"] [data-testid="stColumn"],
+  [class*="st-key-duo_row_"] [data-testid="column"] {
+    flex: 1 1 0 !important; width: auto !important; min-width: 0 !important;
+  }
+  [class*="st-key-pcb_"] button { width: 58px !important; height: 58px !important;
+                                  min-height: 58px !important; min-width: 58px !important;
+                                  font-size: 1.45rem !important; }
+  .duo-lab { --w: 132px; }
+  .duo-lab b { font-size: 0.76rem; }
+  .duo-lab .duo-sub { font-size: 0.68rem; }
+  .tbl { font-size: 0.85rem; }
   .tbl th, .tbl td { padding: 6px 9px; }
-  h1, .proj-title { font-size: 1.45rem !important; line-height: 1.2; }
+  h1, .proj-title { font-size: 1.55rem !important; line-height: 1.2; }
   .badge { display: inline-block; margin-bottom: 4px; }
+  .unit-t { font-size: 1.08rem; }
+  [class*="st-key-duo_unit_"] { padding: 12px 14px; }
 }
 
-/* ---- les deux colonnes de l'onglet Démonstration sont des cartes ------
-   Le marqueur .pc-mark est invisible : il ne sert qu'à reconnaître la
-   colonne pour lui donner un cadre, comme sur la maquette. `:has()` est
-   pris en charge par tous les navigateurs de 2024 et suivants ; s'il ne
-   l'est pas, la mise en page reste correcte, seuls les cadres manquent. */
-[data-testid="stColumn"]:has(.pc-mark) {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: var(--sp-3) var(--sp-3) var(--sp-4);
-}
-
-/* ---- chemin en zig-zag -------------------------------------------------
-   Le nœud est un bouton rond ; son nom et son statut sont à côté. Le trait
-   pointillé qui les relie est décoratif. Aucune information n'est portée par
-   la position ni par la couleur : le statut est écrit en toutes lettres. */
-[class*="st-key-pcb_"] button {
-  width: 58px; height: 58px; min-height: 58px; border-radius: 50%;
-  padding: 0; font-size: 0.95rem; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  border: 2.5px solid var(--border-ui); background: var(--surface);
-  color: var(--fg-3);
-}
-[class*="st-key-pcb_"] { display: flex; justify-content: center; }
-[class*="st-key-pcb_done"] button { border-color: var(--ok); color: var(--ok); }
-[class*="st-key-pcb_cur"] button { border-color: var(--focus); color: var(--info);
-  box-shadow: 0 0 0 5px rgba(122,180,247,0.16); }
-[class*="st-key-pcb_lock"] button { border-style: dashed; color: var(--fg-4);
-  background: var(--bg); }
-[class*="st-key-pcb_open"] button { color: var(--fg-4); }
-[class*="st-key-pcb_"] button:hover { border-color: var(--focus); color: var(--fg-1); }
-[class*="st-key-pcb_"] button:focus-visible {
-  outline: 3px solid var(--focus) !important; outline-offset: 4px !important; }
-
-/* nom + statut à côté du nœud */
-.pc-txt { padding: 4px 0 0; }
-.pc-name { color: var(--fg-1); font-weight: 650; font-size: 0.92rem;
-           line-height: 1.25; }
-.pc-sub  { color: var(--fg-4); font-size: 0.78rem; line-height: 1.35;
-           margin-top: 2px; }
-.pc-badge { display: inline-block; margin-top: 5px; font-size: 0.66rem;
-            letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700;
-            color: var(--info); border: 1px solid var(--focus);
-            border-radius: 999px; padding: 1px 9px; }
-.pc-badge-cur { background: var(--surface-2); }
-
-/* trait pointillé entre deux nœuds — purement décoratif */
-.pc-link { height: 22px; margin: -2px 0; }
-.pc-link::before { content: ""; display: block; width: 62%; height: 100%;
-  margin-left: 6%; border-left: 2px dashed var(--border-ui);
-  border-bottom: 2px dashed var(--border-ui);
-  border-bottom-left-radius: 22px; }
-.pc-link-right::before { margin-left: auto; margin-right: 6%;
-  border-left: 0; border-right: 2px dashed var(--border-ui);
-  border-bottom-left-radius: 0; border-bottom-right-radius: 22px; }
-.pc-link-done::before, .pc-link-cur::before { border-color: var(--ok); opacity: 0.75; }
-.pc-link-lock::before { opacity: 0.5; }
-
-/* légende du chemin */
-.pc-legend { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-             margin: var(--sp-3) 0 var(--sp-1); font-size: 0.76rem;
-             color: var(--fg-3); }
-.pc-legend-n { color: var(--fg-4); font-style: italic; }
-
-/* en-tête du panneau de droite : où l'on est, puis le titre de l'étape */
-/* ---- en-tête d'unité : ce que fait la page, et où l'on en est -------- */
-.unit { background: var(--surface); border: 1px solid var(--border);
-        border-left: 3px solid var(--ok); border-radius: var(--radius);
-        padding: var(--sp-3) var(--sp-4); }
-.unit-t { color: var(--fg-1); font-weight: 700; font-size: 1.02rem; }
-.unit-s { color: var(--fg-3); font-size: 0.88rem; margin-top: 4px; }
-.unit-p { display: flex; flex-wrap: wrap; align-items: center; gap: 9px;
-          margin-top: var(--sp-2); }
-.unit-pl { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
-           color: var(--fg-4); font-weight: 700; }
-.unit-dots { display: inline-flex; gap: 5px; }
-.u-dot { width: 9px; height: 9px; border-radius: 999px;
-         border: 1.5px solid var(--border-ui); background: transparent; }
-.u-dot.u-on { background: var(--ok); border-color: var(--ok); }
-.unit-pn { font-size: 0.76rem; color: var(--fg-4); }
-
-/* ---- parcours : le titre au-dessus de la phrase d'introduction ------- */
-.pc-path-h { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
-             color: var(--fg-4); font-weight: 700; margin: 0 0 4px; }
-
-/* ---- clic sur un cadenas : ce que le verrou fait, et ne fait pas ----- */
-.u-lock { background: var(--surface-2); border: 1px solid var(--border);
-          border-left: 3px solid var(--warn); border-radius: var(--radius);
-          padding: var(--sp-3); margin-top: var(--sp-2); }
-.u-lock-h { color: var(--warn); font-weight: 700; font-size: 0.82rem;
-            letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
-.u-lock-b { color: var(--fg-2); font-size: 0.86rem; line-height: 1.55; }
-.u-lock-g { color: var(--fg-4); font-size: 0.78rem; font-style: italic; margin-top: 6px; }
-
-/* ---- ce qui est mémorisé entre les étapes --------------------------- */
-.u-mem { background: var(--surface-2); border: 1px solid var(--border);
-         border-radius: var(--radius); padding: var(--sp-3); margin-top: var(--sp-3); }
-.u-mem-h { color: var(--fg-4); font-size: 0.72rem; letter-spacing: 0.12em;
-           text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
-.u-mem ul { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 0.86rem; }
-.u-mem li { margin-bottom: 3px; }
-
-.pc-do { color: var(--fg-2); font-size: 0.95rem; line-height: 1.55;
-         margin: -4px 0 var(--sp-3); max-width: 62ch; }
-
-.pc-panel-h { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
-              color: var(--fg-4); font-weight: 700; margin: 0 0 6px; }
-
-/* Le rail : une pastille d'état par étape, reliée par un trait vertical.
-   Décoratif (aria-hidden) — la cible cliquable est le bouton juste dessous. */
-.pc-rail { position: relative; display: flex; justify-content: center;
-           height: 26px; margin: 0 0 2px; }
-.pc-rail::before { content: ""; position: absolute; top: 0; bottom: -34px;
-                   left: 50%; width: 2px; transform: translateX(-50%);
-                   background: var(--border); }
-.pc-rail-lock::before { background: repeating-linear-gradient(
-  to bottom, var(--border-ui) 0 6px, transparent 6px 12px); }
-.pc-rail-done::before, .pc-rail-cur::before { background: var(--ok); }
-.pc-dot { position: relative; z-index: 1; display: inline-flex;
-          align-items: center; justify-content: center;
-          width: 26px; height: 26px; border-radius: 999px;
-          background: var(--surface); border: 2px solid var(--border-ui);
-          font-size: 0.78rem; line-height: 1; }
-.pc-rail-cur .pc-dot { border-color: var(--focus); color: var(--info);
-                       box-shadow: 0 0 0 4px rgba(122,180,247,0.18); }
-.pc-rail-done .pc-dot { border-color: var(--ok); color: var(--ok); }
-.pc-rail-lock .pc-dot { border-style: dashed; color: var(--fg-4); }
-.pc-rail-open .pc-dot { color: var(--fg-4); }
-
-/* ---- progression du parcours : le nombre d'étapes que les données
-   autorisent réellement. Ce n'est pas un score : c'est un compte. */
-.pc-prog { margin: var(--sp-2) 0 var(--sp-3); }
-.pc-prog-l { font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase;
-             color: var(--fg-4); margin-bottom: 5px; font-weight: 600; }
-.pc-prog-b { height: 7px; border-radius: 999px; background: var(--surface-2);
-             border: 1px solid var(--border); overflow: hidden; }
-.pc-prog-b span { display: block; height: 100%; background: var(--ok); }
-
-/* ---- repère de parcours : où en est l'utilisateur -------------------
-   Quatre étapes, un état par étape. Le symbole (✓ ● ○) et le mot lu par
-   le lecteur d'écran portent l'état ; la couleur ne fait que renforcer. */
-.pc-bar { list-style: none; display: flex; flex-wrap: wrap; gap: var(--sp-1);
-          padding: 0; margin: 0 0 var(--sp-3); }
-.pc { display: inline-flex; align-items: center; gap: 6px;
-      font-size: 0.84rem; padding: 4px 10px; border-radius: 999px;
-      border: 1px solid var(--border); color: var(--fg-3);
-      background: var(--surface); }
-.pc-m { font-size: 0.9em; }
-.pc-courant { border-color: var(--focus); color: var(--fg-1);
-              background: var(--surface-2); font-weight: 650; }
-.pc-fait { color: var(--fg-3); border-color: var(--border-ui); }
-.pc-a_venir { color: var(--fg-4); }
-@media (max-width: 900px) { .pc-bar { gap: 4px; } .pc { font-size: 0.78rem; } }
-@media print { .pc-bar { display: none; } }
-
-/* ---- impression : le jury doit pouvoir imprimer un écran lisible ------ */
+/* ---- impression : un écran du mémoire doit rester lisible sur papier */
 @media print {
-  .stApp { background: #fff !important; color: #111 !important; }
-  [data-testid="stSidebar"], [data-testid="stToolbar"], .badge { display: none !important; }
-  .tbl th, .tbl td { border-color: #999; color: #111 !important; }
-  .tbl thead th { background: #eee !important; }
-  .note, .pitch, .card { border: 1px solid #999 !important; background: #fff !important; }
+  .stApp { background: #ffffff !important; color: #111111 !important; }
+  [data-testid="stSidebar"], [data-testid="stToolbar"], .badge,
+  .duo-mascotte, [class*="st-key-pcb_"] { display: none !important; }
+  .tbl th, .tbl td { border-color: #999999; color: #111111 !important; }
+  .tbl thead th { background: #eeeeee !important; }
+  .note, .pitch, .panel, .kpi, .unit { border: 1px solid #999999 !important;
+                                      background: #ffffff !important;
+                                      box-shadow: none !important; }
   a[href]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
 }
 
-/* ---- utilitaires ---- */
+/* ---- utilitaires -------------------------------------------------- */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-           overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+           overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -2005,10 +2326,11 @@ def per_class_png(rows) -> bytes:
     """
     Rendu PNG du rappel par classe, pour le dossier de candidature.
 
-    Palette accessible : le texte utilise #dbe4ef sur #0c1422 (15,3:1) et les
+    Palette accessible : le texte utilise #3c3c3c sur #ffffff (11,6:1) et les
     barres sont dans une teinte unique — la valeur est aussi imprimée à côté
     de chaque barre, de sorte que la figure reste lisible sans distinguer
-    les couleurs.
+    les couleurs. Le vert est celui du parcours, pour que la figure et
+    l'écran parlent la même langue visuelle.
     """
     import io
 
@@ -2016,7 +2338,7 @@ def per_class_png(rows) -> bytes:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    SURF, FG1, FG2, FG3, BAR = "#0c1422", "#f1f5f9", "#dbe4ef", "#aebdcd", "#7ab4f7"
+    SURF, FG1, FG2, FG3, BAR = "#ffffff", "#3c3c3c", "#4b4b4b", "#5f5f5f", "#58cc02"
     fig, ax = plt.subplots(figsize=(6.4, 3.2), dpi=150)
     fig.patch.set_facecolor(SURF)
     ax.set_facecolor(SURF)
@@ -2029,7 +2351,7 @@ def per_class_png(rows) -> bytes:
     ax.set_xlim(0, 105)
     ax.tick_params(colors=FG3, labelsize=8)
     for sp in ax.spines.values():
-        sp.set_color("#22304a")
+        sp.set_color("#e5e5e5")
     ax.set_title("Zero-Day recall per attack class", color=FG1, fontsize=10)
     fig.tight_layout()
     buf = io.BytesIO()
@@ -2291,8 +2613,8 @@ st.markdown(
     '<a href="#contenu-principal" class="sr-only" '
     'style="position:absolute;left:-9999px;" '
     'onfocus="this.style.left=\'8px\';this.style.top=\'8px\';'
-    'this.style.padding=\'10px 16px\';this.style.background=\'#0c1422\';'
-    'this.style.border=\'2px solid #7ab4f7\';this.style.borderRadius=\'6px\';'
+    'this.style.padding=\'10px 16px\';this.style.background=\'#ffffff\';'
+    'this.style.border=\'2px solid #0b63b8\';this.style.borderRadius=\'10px\';'
     'this.style.zIndex=9999;this.style.width=\'auto\';this.style.height=\'auto\';'
     'this.style.clip=\'auto\';" '
     'onblur="this.style.left=\'-9999px\';">'
@@ -2475,6 +2797,97 @@ def relancer_analyse() -> bool:
     return True
 
 
+# ── Brique visuelle : mascotte, coffre, trait du chemin ───────────────────
+# Ces trois dessins sont des SVG en ligne, pas des images : ils suivent la
+# palette du thème, restent nets à toute taille et ne coûtent aucun fichier
+# à copier à côté de app.py. Les couleurs y sont écrites en clair — un SVG
+# inline n'hérite pas des variables CSS posées dans un autre bloc.
+
+def mascotte_svg(taille: int = 84, alt: str = "") -> str:
+    """La chouette du parcours : un repère amical, pas une décoration muette.
+
+    `alt` est le texte lu par un lecteur d'écran. Vide, le dessin est
+    purement décoratif (`aria-hidden`) — c'est le cas quand la bulle juste
+    à côté dit déjà la même chose.
+    """
+    _a = (f'role="img" aria-label="{_html.escape(alt)}"' if alt
+          else 'aria-hidden="true" focusable="false"')
+    return (
+        f'<svg width="{taille}" height="{taille}" viewBox="0 0 100 100" {_a}>'
+        '<ellipse cx="50" cy="94" rx="25" ry="4.5" fill="#00000012"/>'
+        '<path d="M30 27 L26 8 L45 18 Z" fill="#46a302"/>'
+        '<path d="M70 27 L74 8 L55 18 Z" fill="#46a302"/>'
+        '<ellipse cx="21" cy="53" rx="8" ry="16" fill="#46a302" '
+        'transform="rotate(14 21 53)"/>'
+        '<ellipse cx="79" cy="53" rx="8" ry="16" fill="#46a302" '
+        'transform="rotate(-14 79 53)"/>'
+        '<path d="M50 12 C33 12 24 24 24 40 C24 62 34 82 50 82 '
+        'C66 82 76 62 76 40 C76 24 67 12 50 12 Z" fill="#58cc02"/>'
+        '<ellipse cx="50" cy="57" rx="18" ry="18" fill="#d7ffb8"/>'
+        '<circle cx="39" cy="36" r="12.5" fill="#ffffff" stroke="#46a302" '
+        'stroke-width="2.5"/>'
+        '<circle cx="61" cy="36" r="12.5" fill="#ffffff" stroke="#46a302" '
+        'stroke-width="2.5"/>'
+        '<circle cx="40.5" cy="37" r="5.2" fill="#2f2f2f"/>'
+        '<circle cx="59.5" cy="37" r="5.2" fill="#2f2f2f"/>'
+        '<circle cx="42.4" cy="34.8" r="1.9" fill="#ffffff"/>'
+        '<circle cx="61.4" cy="34.8" r="1.9" fill="#ffffff"/>'
+        '<path d="M50 43 L57.5 49 L50 55 L42.5 49 Z" fill="#ffc800"/>'
+        '<path d="M50 53 L59 56 L59 62 C59 67 54.5 70 50 72 '
+        'C45.5 70 41 67 41 62 L41 56 Z" fill="#ffffff" stroke="#46a302" '
+        'stroke-width="2.2"/>'
+        '<path d="M45.5 60.5 L49 64 L55 57.5" fill="none" stroke="#2c8000" '
+        'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'
+        '<path d="M37 82 L32 90 L42 88 Z" fill="#ffa000"/>'
+        '<path d="M63 82 L68 90 L58 88 Z" fill="#ffa000"/>'
+        '</svg>'
+    )
+
+
+def coffre_svg(ouvert: bool) -> str:
+    """Le jalon doré du chemin : un coffre qui s'ouvre sur un vrai événement.
+
+    Il ne récompense rien : il marque une halte que les données ont
+    réellement franchie. Fermé, il est gris et dit « pas encore ».
+    """
+    or_, or_d, or_f, or_i = ("#ffc800", "#e5a500", "#b88200", "#8a5b00")
+    if not ouvert:
+        or_, or_d, or_f, or_i = ("#e2e2e2", "#d0d0d0", "#a9a9a9", "#6f6f6f")
+    return (
+        '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">'
+        '<ellipse cx="50" cy="88" rx="28" ry="5" fill="#00000012"/>'
+        f'<rect x="22" y="48" width="56" height="35" rx="8" fill="{or_d}" '
+        f'stroke="{or_f}" stroke-width="3"/>'
+        f'<path d="M22 50 v-8 c0-8 6-13 14-13 h28 c8 0 14 5 14 13 v8 z" '
+        f'fill="{or_}" stroke="{or_f}" stroke-width="3"/>'
+        f'<rect x="20" y="45" width="60" height="8" rx="4" fill="{or_f}"/>'
+        f'<rect x="43" y="56" width="14" height="17" rx="3" fill="#fff8dc" '
+        f'stroke="{or_f}" stroke-width="2.5"/>'
+        f'<circle cx="50" cy="62" r="2.6" fill="{or_i}"/>'
+        f'<rect x="48.8" y="62" width="2.4" height="5.5" rx="1.2" fill="{or_i}"/>'
+        + ('' if ouvert else
+           f'<path d="M50 34 v-6 a8 8 0 0 1 16 0 v6" fill="none" '
+           f'stroke="{or_f}" stroke-width="4" stroke-linecap="round"/>')
+        + (f'<path d="M14 30 l4 4 M20 22 l1 6 M8 44 l6 1" stroke="{or_}" '
+           f'stroke-width="3" stroke-linecap="round"/>' if ouvert else '')
+        + '</svg>'
+    )
+
+
+def lien_svg(x1: float, x2: float, etat: str = "") -> str:
+    """Le trait pointillé entre deux nœuds, dans la couleur de l'état.
+
+    Il est étiré (`preserveAspectRatio="none"`) pour suivre la largeur de
+    la carte, et `vector-effect` garde une épaisseur et un pointillé
+    constants malgré cette déformation. Décoratif : aria-hidden.
+    """
+    _d = (f"M {x1:.1f} 1 C {x1:.1f} 13, {x2:.1f} 13, {x2:.1f} 27")
+    return (f'<div class="duo-link {etat}" aria-hidden="true">'
+            f'<svg viewBox="0 0 100 28" preserveAspectRatio="none" '
+            f'focusable="false"><path class="ln" d="{_d}" '
+            f'vector-effect="non-scaling-stroke"/></svg></div>')
+
+
 def entete_unite(n: int, prog: bool = False):
     """Bandeau d'unité : ce que fait la page, et où l'on en est.
 
@@ -2487,6 +2900,13 @@ def entete_unite(n: int, prog: bool = False):
     n'y a rien à compter.
     """
     _titre, _sous, _guide = t(f"un{n}_t"), t(f"un{n}_s"), t(f"un{n}_g")
+    # La maquette montre « Unité 1 » en gros et la phrase en dessous. Le titre
+    # des dictionnaires porte les deux, séparés par « · » : on le scinde ici
+    # plutôt que d'ajouter douze clés de traduction pour la même phrase.
+    _k, _sep, _t2 = _titre.partition(" · ")
+    if not _sep:
+        _k, _t2 = "", _titre
+    _k_html = f'<div class="unit-k">{_html.escape(_k)}</div>' if _k else ""
     _prog_html = ""
     if prog:
         _nd = sum(1 for k in range(1, ETAPES + 1) if etape_ouverte(k))
@@ -2497,29 +2917,89 @@ def entete_unite(n: int, prog: bool = False):
                       f'<span class="unit-dots" aria-hidden="true">{_dots}</span>'
                       f'<span class="unit-pn">'
                       f'{t("u_prog_n", n=_nd, m=ETAPES)}</span></div>')
-    _c_txt, _c_btn = st.columns([5.2, 1], gap="small", vertical_alignment="center")
-    with _c_txt:
-        st.markdown(
-            f'<div class="unit" lang="{LANG}">'
-            f'<div class="unit-t">{_html.escape(_titre)}</div>'
-            f'<div class="unit-s">{_md_html(_sous)}</div>{_prog_html}</div>',
-            unsafe_allow_html=True)
-    with _c_btn:
-        with st.popover(t("u_guide")):
-            st.markdown(t(f"un{n}_g"))
+    # Le conteneur à clé porte le fond vert : les deux colonnes (texte +
+    # bouton Guide) forment ainsi UNE carte, comme sur la maquette.
+    with st.container(key=f"duo_unit_{n}"):
+        _c_txt, _c_btn = st.columns([5.2, 1], gap="small",
+                                    vertical_alignment="center")
+        with _c_txt:
+            st.markdown(
+                f'<div class="unit" lang="{LANG}">{_k_html}'
+                f'<div class="unit-t">{_html.escape(_t2)}</div>'
+                f'<div class="unit-s">{_md_html(_sous)}</div>{_prog_html}</div>',
+                unsafe_allow_html=True)
+        with _c_btn:
+            with st.popover(t("u_guide")):
+                st.markdown(t(f"un{n}_g"))
     st.write("")
 
 
+DUO_POS = [3, 4, 3, 2, 2, 3, 4]   # colonne du nœud (1..5) : dessine le zigzag
+DUO_JALONS = (3, 6)               # haltes dorées placées après ces étapes
+
+
+def _duo_x(pos: int) -> float:
+    """Abscisse du centre d'une cellule, en pourcentage de la largeur."""
+    return 10.0 + (pos - 1) * 20.0
+
+
+def _duo_etat(i: int, courante: int):
+    """État et symbole d'une étape. Quatre états, aucun mensonge :
+
+    « done » n'apparaît que sur une étape réellement franchie, « open » sur
+    une étape dont les données existent déjà, « lock » quand la mesure
+    manque. Le symbole double la couleur (WCAG 1.4.1).
+    """
+    if not etape_ouverte(i):
+        return "lock", "🔒"
+    if i == courante:
+        return "cur", str(i)
+    if i < courante:
+        return "done", "✓"
+    return "open", str(i)
+
+
+def _duo_statut(i: int, etat: str) -> str:
+    """Statut écrit en toutes lettres : c'est lui qui informe."""
+    if etat == "lock":
+        _det = t("pc_after", n=i - 1) if i > 1 else ""
+        return f"{t('pc_locked')} · {_det}" if _det else t("pc_locked")
+    if etat == "cur":
+        return t("pc_now")
+    if etat == "done":
+        return t("pc_done")
+    return t("pc_open")
+
+
+def _duo_message() -> str:
+    """Ce que dit la mascotte : l'état du lot, jamais un encouragement creux."""
+    _sc = st.session_state.get("last_scores")
+    if _sc is None:
+        return t("owl_hello")
+    _a = np.asarray(_sc, dtype=float)
+    return t("owl_done", a=int((_a > thr).sum()), n=len(_a), s=f"{thr:.2f}")
+
+
 def parcours() -> int:
-    """Chemin cliquable des sept étapes. Retourne l'étape affichée.
+    """Le chemin des sept étapes, en zigzag. Retourne l'étape affichée.
 
     Chaque nœud est un bouton Streamlit — donc au clavier, annoncé, activable
     par Entrée. Un nœud verrouillé reste cliquable : il ouvre un encart qui
     dit CE QUI MANQUE et propose d'y aller. Aucun clic ne produit une page
     blanche.
+
+    La forme suit la maquette : nœuds ronds qui s'enfoncent au clic, trait
+    pointillé entre eux, deux haltes dorées, une mascotte qui commente. La
+    règle de fond ne bouge pas : l'état est écrit sous chaque nœud, la
+    couleur ne fait que renforcer.
     """
     courante = int(st.session_state.get("pc_step", 1))
-    libelles = PC_KEYS
+
+    # ── la mascotte : sa bulle dit l'état réel du lot ─────────────────────
+    st.markdown(
+        '<div class="duo-mascotte">' + mascotte_svg(84) +
+        f'<div class="duo-bubble" lang="{LANG}">{_md_inline(_duo_message())}</div>'
+        '</div>', unsafe_allow_html=True)
 
     st.markdown(f'<p class="pc-path-h" lang="{LANG}">{t("u_parcours")}</p>',
                 unsafe_allow_html=True)
@@ -2533,65 +3013,61 @@ def parcours() -> int:
         f'<div class="pc-prog" lang="{LANG}">'
         f'<div class="pc-prog-l">{t("pc_prog")} · {_n_ouvertes}/{ETAPES}</div>'
         f'<div class="pc-prog-b" role="img" aria-label="{_n_ouvertes} / {ETAPES}">'
-        f'<span style="width:{100*_n_ouvertes/ETAPES:.0f}%"></span></div></div>',
+        f'<span style="width:{100 * _n_ouvertes / ETAPES:.0f}%"></span></div></div>',
         unsafe_allow_html=True)
 
-    # Un nœud par ligne, alternativement à gauche et à droite, avec son nom
-    # et son statut à côté : c'est la disposition de la maquette. Chaque nœud
-    # reste un VRAI bouton (Tab, Entrée, annoncé) ; le trait qui les relie est
-    # décoratif — aria-hidden, il ne reçoit aucun clic.
-    for i, cle in enumerate(libelles, start=1):
-        ouverte = etape_ouverte(i)
-        # Quatre états distincts : afficher ✓ sur une étape jamais ouverte
-        # serait un mensonge.
-        if not ouverte:
-            etat, marque = "lock", "🔒"
-        elif i == courante:
-            etat, marque = "cur", "●"
-        elif i < courante:
-            etat, marque = "done", "✓"
-        else:
-            etat, marque = "open", "○"
+    # ── le chemin ────────────────────────────────────────────────────────
+    # Une ligne par nœud dans une grille de cinq cellules : la cellule
+    # occupée change à chaque étape, ce qui dessine le zigzag. Le trait
+    # pointillé est un SVG étiré entre les deux abscisses : il reste juste
+    # à toute largeur, y compris sur un téléphone.
+    _prec_x = None
+    for i in range(1, ETAPES + 1):
+        etat, marque = _duo_etat(i, courante)
+        statut = _duo_statut(i, etat)
+        _x = _duo_x(DUO_POS[i - 1])
 
-        # Statut écrit en toutes lettres : c'est la couleur qui décore,
-        # jamais elle qui informe.
-        if not ouverte:
-            _mot = t("pc_locked")
-            _det = t("pc_after", n=i - 1) if i > 1 else ""
-            statut = f"{_mot} · {_det}" if _det else _mot
-        elif i == courante:
-            statut = t("pc_now")
-        else:
-            statut = t("pc_open")
+        if _prec_x is not None:
+            _teinte = ("done" if etat == "done" else
+                       "cur" if etat in ("cur", "open") else "")
+            st.markdown(lien_svg(_prec_x, _x, _teinte), unsafe_allow_html=True)
 
-        aide = f"{t(cle)} — {statut}"
-        gauche = (i % 2 == 1)
-        _c_node, _c_txt = st.columns([1, 2.05], gap="small")
-        _col_node = _c_node if gauche else _c_txt
-        _col_txt = _c_txt if gauche else _c_node
+        # La clé du conteneur devient une classe CSS (`st-key-duo_row_<n>`) :
+        # c'est elle qui garde les cinq cellules côte à côte sur téléphone.
+        with st.container(key=f"duo_row_{i}"):
+            _cells = st.columns(5, gap="small")
+            with _cells[DUO_POS[i - 1] - 1]:
+                # Un cadenas reste un bouton : il explique au lieu de refuser.
+                if st.button(marque, key=f"pcb_{etat}_{i}",
+                             help=f"{i} · {t(PC_KEYS[i - 1])} — {statut}"):
+                    st.session_state.pc_step = i
+                    st.rerun()
+                # Le nom et le statut sont sous le nœud, en toutes lettres.
+                _pill = ('<span class="duo-now-pill">● ' + _html.escape(t("pc_now")) +
+                         '</span>' if etat == "cur" else
+                         '<span class="duo-lock-pill">🔒 ' + _html.escape(t("pc_locked")) +
+                         '</span>' if etat == "lock" else "")
+                st.markdown(
+                    f'<div class="duo-lab" lang="{LANG}">'
+                    f'<span class="duo-k">{t("duo_step", n=i)}</span>'
+                    f'<b>{_html.escape(t(PC_KEYS[i - 1]))}</b>'
+                    f'<span class="duo-sub">{_html.escape(statut)}</span>{_pill}</div>',
+                    unsafe_allow_html=True)
+        _prec_x = _x
 
-        with _col_node:
-            if st.button(f"{i} {marque}", key=f"pcb_{etat}_{i}", help=aide):
-                st.session_state.pc_step = i
-                st.rerun()
-
-        with _col_txt:
-            badge = (f'<span class="pc-badge pc-badge-{etat}">{t("pc_now")}</span>'
-                     if i == courante else "")
-            align = "left" if gauche else "right"
+        # ── halte dorée : un coffre qui s'ouvre sur un vrai événement ────
+        if i in DUO_JALONS:
+            _ouvert = (st.session_state.get("last_scores") is not None if i == 3
+                       else bool(st.session_state.get("history")))
+            st.markdown(lien_svg(_prec_x, 50.0, "done" if _ouvert else ""),
+                        unsafe_allow_html=True)
+            _lib = t("jalon_a" if i == 3 else "jalon_b") if _ouvert else t("jalon_off")
             st.markdown(
-                f'<div class="pc-txt" style="text-align:{align}" lang="{LANG}">'
-                f'<div class="pc-name">{_html.escape(f"{i} · {t(cle)}")}</div>'
-                f'<div class="pc-sub">{_html.escape(t("pc_d" + str(i)))} · '
-                f'{_html.escape(statut)}</div>{badge}</div>',
+                f'<div class="duo-jalon{" on" if _ouvert else ""}" lang="{LANG}">'
+                f'{coffre_svg(_ouvert)}'
+                f'<span class="jl">{_html.escape(_lib)}</span></div>',
                 unsafe_allow_html=True)
-
-        # Le trait pointillé qui descend vers l'étape suivante : décoratif.
-        if i < len(libelles):
-            _sl = "right" if gauche else "left"
-            st.markdown(
-                f'<div class="pc-link pc-link-{_sl} pc-link-{etat}" '
-                f'aria-hidden="true"></div>', unsafe_allow_html=True)
+            _prec_x = 50.0
 
     st.markdown(
         f'<div class="pc-legend" lang="{LANG}">'
@@ -2604,7 +3080,7 @@ def parcours() -> int:
     # L'étape affichée est annoncée : un lecteur d'écran n'entend pas le style.
     st.markdown(
         f'<p class="sr-only" role="status" lang="{LANG}">{t("pc_cur")} : '
-        f'{courante} · {_html.escape(t(libelles[courante - 1]))}</p>',
+        f'{courante} · {_html.escape(t(PC_KEYS[courante - 1]))}</p>',
         unsafe_allow_html=True)
 
     # Ce que fait un cadenas, écrit une fois pour toutes sous le parcours :
@@ -2705,11 +3181,11 @@ with tab_d:
     # de l'étape à droite. Sur mobile, Streamlit les empile : le chemin passe
     # au-dessus du contenu, ce qui reste l'ordre de lecture correct.
     entete_unite(2, prog=True)
-    _pc_col, _body_col = st.columns([1.05, 3.0], gap="large")
+    _pc_col, _body_col = st.columns([1.35, 2.5], gap="large")
     with _pc_col:
         # Marqueur invisible : il sert uniquement au CSS à reconnaître cette
         # colonne et à lui donner l'allure de carte de la maquette.
-        st.markdown('<div class="pc-mark" aria-hidden="true"></div>',
+        st.markdown('<div class="pc-mark duo-path" aria-hidden="true"></div>',
                     unsafe_allow_html=True)
         _pc = parcours()
     with _body_col:
@@ -3067,8 +3543,8 @@ with tab_d:
                         st.markdown(
                             f'<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;'
                             f'margin-bottom:3px;border-radius:8px;'
-                            f'background:{"#1b0d0d" if bad else "#08190f"};'
-                            f'border-left:3px solid {"var(--danger)" if bad else "var(--ok)"};font-size:0.9rem;">'
+                            f'background:{"#fdf1f1" if bad else "#f5fbec"};'
+                            f'border-left:4px solid {"var(--danger)" if bad else "var(--ok)"};font-size:0.9rem;">'
                             f'<div style="min-width:96px;color:var(--fg-3);">{t("d_flow_n")} #{int(i)+1}</div>'
                             f'<div style="flex:1;background:var(--border);height:7px;border-radius:10px;overflow:hidden;">'
                             f'<div style="width:{w:.0f}%;height:100%;background:{"var(--danger)" if bad else "var(--ok)"};"></div></div>'
@@ -3079,7 +3555,7 @@ with tab_d:
                     st.bar_chart(pd.DataFrame({
                         "cat": ["Normal", "Alert"],
                         "n": [nb_total - nb_alert, nb_alert]}).set_index("cat"),
-                        height=230, color="#7ab4f7")
+                        height=230, color="#58cc02")
                     st.caption(f"threshold = {thr:.3f}")
 
                 # Cinq graphiques empilés, c'était un mur en travers de la
@@ -3356,7 +3832,7 @@ with tab_r:
                 dfa = pd.DataFrame({
                     "class": [r["classe"] for r in rows],
                     "recall": [r["recall"] * 100 for r in rows]})
-                st.bar_chart(dfa.set_index("class"), height=260, color="#7ab4f7")
+                st.bar_chart(dfa.set_index("class"), height=260, color="#58cc02")
             st.download_button(t("r_export"),
                                pd.DataFrame(om["per_class"]).to_csv(index=False).encode(),
                                "metrics_per_class.csv", width='stretch')
@@ -3376,7 +3852,7 @@ with tab_r:
                 st.line_chart(pd.DataFrame({
                     "false alarms %": ad["fpr"][::step] * 100,
                     "detection %": ad["tpr"][::step] * 100}).set_index("false alarms %"),
-                    height=260, color="#7ab4f7")
+                    height=260, color="#58cc02")
                 op = target_fpr
                 ph = float(np.interp(op, ad["fpr"], ad["tpr"]))
                 st.caption(f"→ at {op*100:.1f} % false alarms, detection = **{ph*100:.1f} %**")
