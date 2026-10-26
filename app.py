@@ -120,7 +120,7 @@ T = {
     "o_score_v":    ("Probabilité d'attaque — gradient boosting", "Attack probability — gradient boosting"),
     "o_honest_h":   ("Ce que ce travail démontre", "What this work shows"),
     "o_honest":     (
-        "Le résultat principal. Un détecteur entraîné sans jamais voir cinq familles "
+        "**Le résultat principal.** Un détecteur entraîné sans jamais voir cinq familles "
         "d'attaque les reconnaît ensuite avec un **AUROC de 0,9668** et **93,12 % de "
         "rappel** à 9,03 % de fausses alertes — 5 117 attaques interceptées sur 5 495.\n\n"
         "**Ce qui a changé la conclusion.** La famille Bot était bloquée à 49,34 % de "
@@ -488,12 +488,73 @@ T = {
                      "waiting for a measurement. A padlock is still clickable — it says "
                      "what is missing."),
     "pc_prog":      ("Étapes accessibles", "Steps available"),
-    "u_title":      ("Unité 1 · Analyser un trafic réseau",
-                     "Unit 1 · Analysing network traffic"),
-    "u_sub":        ("Chaque étape s'ouvre quand la précédente a produit un résultat "
+    "un1_t":        ("Unité 1 · Le problème, et ce que répond l'application",
+                     "Unit 1 · The problem, and what the app answers"),
+    "un1_s":        ("Ce que reçoit un centre opérationnel, pourquoi les systèmes "
+                     "classiques échouent sur les attaques nouvelles, et ce que cette "
+                     "application mesure — avec ses limites.",
+                     "What a security operations centre receives, why classic systems "
+                     "fail on new attacks, and what this app measures — with its limits."),
+    "un1_g":        ("Cette page ne montre aucun résultat de votre part : elle pose le "
+                     "problème et donne les chiffres de référence, obtenus sur un jeu de "
+                     "test gelé. Les résultats d'une analyse se lisent dans l'onglet "
+                     "Démonstration.",
+                     "This page shows no result of your own: it states the problem and "
+                     "gives the reference figures, obtained on a frozen test set. The "
+                     "results of an analysis are read in the Demonstration tab."),
+    "un2_t":        ("Unité 2 · Analyser un trafic réseau",
+                     "Unit 2 · Analysing network traffic"),
+    "un2_s":        ("Chaque étape s'ouvre quand la précédente a produit un résultat "
                      "réel — jamais par simple clic.",
                      "Each step opens once the previous one produced a real result — "
                      "never through a mere click."),
+    "un2_g":        ("Le parcours se lit de haut en bas, à gauche. Chaque nœud est un "
+                     "bouton : Tab pour le parcourir, Entrée pour l'ouvrir. Un cadenas "
+                     "s'ouvre aussi — il dit ce qui manque, il ne refuse pas.",
+                     "The path reads top to bottom, on the left. Every node is a button: "
+                     "Tab to walk it, Enter to open it. A padlock opens too — it says "
+                     "what is missing, it does not refuse."),
+    "un3_t":        ("Unité 3 · Les résultats mesurés",
+                     "Unit 3 · The measured results"),
+    "un3_s":        ("Les chiffres obtenus sur le jeu de test gelé, avec leur intervalle "
+                     "et les conditions dans lesquelles ils tiennent.",
+                     "The figures obtained on the frozen test set, with their interval "
+                     "and the conditions under which they hold."),
+    "un3_g":        ("Un chiffre seul ne veut rien dire : ici chaque mesure porte son "
+                     "intervalle de confiance et l'effectif qui la soutient. Aucun de ces "
+                     "résultats ne provient de votre session — ce sont ceux du mémoire.",
+                     "A figure on its own means nothing: every measure here carries its "
+                     "confidence interval and the sample it rests on. None of these "
+                     "results come from your session — they are the thesis figures."),
+    "un4_t":        ("Unité 4 · La méthode",
+                     "Unit 4 · The method"),
+    "un4_s":        ("Comment les données ont été préparées, quel modèle est entraîné, "
+                     "et pourquoi ce seuil plutôt qu'un autre.",
+                     "How the data was prepared, which model is trained, and why this "
+                     "threshold rather than another."),
+    "un4_g":        ("La règle de décision est rappelée ici : un rappel par famille à "
+                     "budget de fausses alertes borné, jamais l'AUROC seul.",
+                     "The decision rule is recalled here: one recall per family at a "
+                     "bounded false-alarm budget, never AUROC alone."),
+    "un5_t":        ("Unité 5 · Les limites",
+                     "Unit 5 · The limits"),
+    "un5_s":        ("Ce que cette application ne fait pas, et dans quels cas les "
+                     "chiffres ci-dessus ne tiennent plus.",
+                     "What this app does not do, and when the figures above stop holding."),
+    "un5_g":        ("Une limite n'est pas avouée ici pour la forme : chacune est reliée "
+                     "à une mesure ou à une absence de mesure constatée.",
+                     "A limit is not confessed here for form's sake: each one is tied to "
+                     "a measurement, or to a measurement that was never possible."),
+    "un6_t":        ("Unité 6 · Aide et glossaire",
+                     "Unit 6 · Help and glossary"),
+    "un6_s":        ("Le vocabulaire employé dans l'application, expliqué simplement, "
+                     "et la marche à suivre pas à pas.",
+                     "The vocabulary used in the app, explained simply, and the "
+                     "step-by-step procedure."),
+    "un6_g":        ("Le glossaire est aussi accessible par le bouton Guide de chaque "
+                     "unité : les deux disent la même chose, au même endroit.",
+                     "The glossary is also reachable from each unit's Guide button: both "
+                     "say the same thing, in the same place."),
     "u_guide":      ("Guide", "Guide"),
     "u_guide_b":    ("Le parcours se lit de haut en bas, à gauche. Chaque nœud est un "
                      "bouton : Tab pour le parcourir, Entrée pour l'ouvrir. Un cadenas "
@@ -2386,6 +2447,41 @@ def relancer_analyse() -> bool:
     return True
 
 
+def entete_unite(n: int, prog: bool = False):
+    """Bandeau d'unité : ce que fait la page, et où l'on en est.
+
+    Le même bloc sur les six onglets : c'est la seule façon d'éviter que
+    l'interface change de ton d'une page à l'autre. Le bouton Guide porte
+    une phrase propre à l'unité — jamais un texte générique recopié.
+
+    `prog=True` n'est utilisé que par l'unité 2 : la progression compte les
+    étapes que les données autorisent réellement, sur les autres pages il
+    n'y a rien à compter.
+    """
+    _titre, _sous, _guide = t(f"un{n}_t"), t(f"un{n}_s"), t(f"un{n}_g")
+    _prog_html = ""
+    if prog:
+        _nd = sum(1 for k in range(1, ETAPES + 1) if etape_ouverte(k))
+        _dots = "".join(
+            f'<span class="u-dot{" u-on" if k <= _nd else ""}"></span>'
+            for k in range(1, ETAPES + 1))
+        _prog_html = (f'<div class="unit-p"><span class="unit-pl">{t("u_prog")}</span>'
+                      f'<span class="unit-dots" aria-hidden="true">{_dots}</span>'
+                      f'<span class="unit-pn">'
+                      f'{t("u_prog_n", n=_nd, m=ETAPES)}</span></div>')
+    _c_txt, _c_btn = st.columns([5.2, 1], gap="small", vertical_alignment="center")
+    with _c_txt:
+        st.markdown(
+            f'<div class="unit" lang="{LANG}">'
+            f'<div class="unit-t">{_html.escape(_titre)}</div>'
+            f'<div class="unit-s">{_md_html(_sous)}</div>{_prog_html}</div>',
+            unsafe_allow_html=True)
+    with _c_btn:
+        with st.popover(t("u_guide")):
+            st.markdown(t(f"un{n}_g"))
+    st.write("")
+
+
 def parcours() -> int:
     """Chemin cliquable des sept étapes. Retourne l'étape affichée.
 
@@ -2515,6 +2611,9 @@ tab_o, tab_d, tab_r, tab_m, tab_l, tab_h = st.tabs([
 # ══════════════════════════════════════════════════════════════════════
 with tab_o:
     st.markdown(f'<h2 class="tab-h">{t("tab_over")}</h2>', unsafe_allow_html=True)
+    # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
+    # quand on change d'onglet.
+    entete_unite(1)
     c1, c2 = st.columns([1.15, 0.85])
     with c1:
         st.markdown(f"### {t('o_problem_h')}")
@@ -2577,29 +2676,7 @@ with tab_d:
     # Deux colonnes comme sur la maquette : le chemin à gauche, le contenu
     # de l'étape à droite. Sur mobile, Streamlit les empile : le chemin passe
     # au-dessus du contenu, ce qui reste l'ordre de lecture correct.
-    # ════════════════════════════════════════════════════════════════════
-    #  EN-TÊTE D'UNITÉ — ce que fait cette page, et où l'on en est
-    #  Les pastilles ne sont pas une récompense : elles comptent les étapes
-    #  que les données autorisent réellement.
-    # ════════════════════════════════════════════════════════════════════
-    _n_dispo = sum(1 for k in range(1, ETAPES + 1) if etape_ouverte(k))
-    _dots = "".join(f'<span class="u-dot{" u-on" if k <= _n_dispo else ""}"></span>'
-                    for k in range(1, ETAPES + 1))
-    _uni, _guid = st.columns([5.2, 1], gap="small", vertical_alignment="center")
-    with _uni:
-        st.markdown(
-            f'<div class="unit" lang="{LANG}">'
-            f'<div class="unit-t">{_html.escape(t("u_title"))}</div>'
-            f'<div class="unit-s">{_md_html(t("u_sub"))}</div>'
-            f'<div class="unit-p"><span class="unit-pl">{t("u_prog")}</span>'
-            f'<span class="unit-dots" aria-hidden="true">{_dots}</span>'
-            f'<span class="unit-pn">{t("u_prog_n", n=_n_dispo, m=ETAPES)}</span></div>'
-            f'</div>', unsafe_allow_html=True)
-    with _guid:
-        with st.popover(t("u_guide")):
-            st.markdown(t("u_guide_b"))
-    st.write("")
-
+    entete_unite(2, prog=True)
     _pc_col, _body_col = st.columns([1.05, 3.0], gap="large")
     with _pc_col:
         # Marqueur invisible : il sert uniquement au CSS à reconnaître cette
@@ -3341,6 +3418,9 @@ with tab_d:
     # ══════════════════════════════════════════════════════════════════════
 with tab_r:
     st.markdown(f'<h2 class="tab-h">{t("tab_res")}</h2>', unsafe_allow_html=True)
+    # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
+    # quand on change d'onglet.
+    entete_unite(3)
     om = official_metrics()
     ad = analysis_data()
 
@@ -3608,6 +3688,9 @@ with tab_r:
 # ══════════════════════════════════════════════════════════════════════
 with tab_m:
     st.markdown(f'<h2 class="tab-h">{t("tab_method")}</h2>', unsafe_allow_html=True)
+    # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
+    # quand on change d'onglet.
+    entete_unite(4)
     q1, q2 = st.columns(2)
     with q1:
         st.markdown(f"### {t('m_enc_h')}")
@@ -3638,6 +3721,9 @@ with tab_m:
 # ══════════════════════════════════════════════════════════════════════
 with tab_l:
     st.markdown(f'<h2 class="tab-h">{t("tab_limit")}</h2>', unsafe_allow_html=True)
+    # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
+    # quand on change d'onglet.
+    entete_unite(5)
     st.markdown(f"### {t('l_h')}")
     st.caption(t("l_intro"))
 
@@ -3731,6 +3817,9 @@ st.markdown(
 # ══════════════════════════════════════════════════════════════════════
 with tab_h:
     st.markdown(f'<h2 class="tab-h">{t("tab_help")}</h2>', unsafe_allow_html=True)
+    # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
+    # quand on change d'onglet.
+    entete_unite(6)
     def H(key: str) -> str:
         fr, en = HELP[key]
         return fr if LANG == "fr" else en
