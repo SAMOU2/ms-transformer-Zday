@@ -515,6 +515,18 @@ T = {
                      "seul le nuage des scores est disponible.",
                      "not measurable — the projection was not computed for this batch: "
                      "only the score scatter is available."),
+    "c_map_err":    ("non mesurable — le calcul de la projection a échoué sur ce lot "
+                     "(**{e}**). Les scores, eux, sont valides : seule la carte "
+                     "manque. « Refaire l'analyse » relance les deux.",
+                     "not measurable — the projection failed on this batch "
+                     "(**{e}**). The scores are still valid: only the map is "
+                     "missing. \"Re-run the analysis\" computes both again."),
+    "c_map_len":    ("non mesurable — la projection porte sur {a} flux, les scores "
+                     "sur {b} : les deux ne viennent pas du même lot. Refais "
+                     "l'analyse pour les réaligner.",
+                     "not measurable — the projection covers {a} flows, the scores "
+                     "{b}: they do not come from the same batch. Re-run the analysis "
+                     "to realign them."),
     "un1_t":        ("Unité 1 · Le problème, et ce que répond l'application",
                      "Unit 1 · The problem, and what the app answers"),
     "un1_s":        ("Ce que reçoit un centre opérationnel, pourquoi les systèmes "
@@ -2242,8 +2254,6 @@ def infer(X_scaled, batch=4096, mode_=None):
         elif MAHA is not None:
             # score du MS-Transformer : Mahalanobis sur l'embedding appris
             sc.append(maha_distance(z))
-        elif MAHA is not None:
-            sc.append(maha_distance(z))
         else:
             sc.append(anomaly_score(out["z"], centroid).numpy())
         vi.append(torch.sigmoid(out["violation_logit"]).numpy())
@@ -2252,6 +2262,34 @@ def infer(X_scaled, batch=4096, mode_=None):
         cf.append(conf.numpy())
     return (np.concatenate(sc), np.concatenate(vi),
             np.concatenate(en), np.concatenate(cf))
+
+
+@torch.no_grad()
+def projection(X_scaled, batch=4096):
+    """Projection 2D de l'embedding appris, pour la carte des connexions.
+
+    Une seule porte d'entrée : la projection était auparavant recalculée à
+    deux endroits (chargement d'un lot, relance de l'analyse), et le premier
+    n'était pas protégé. Si le forward échouait au milieu, les scores
+    existaient mais pas la projection — d'où un « non mesurable » définitif,
+    sans que rien ne le explique.
+
+    Renvoie (emb, erreur) :
+    · (ndarray (n, 2), None) quand la projection a pu être calculée ;
+    · (None, "message") sinon — et on ne fabrique PAS de zéros : un nuage
+      de zéros ressemblerait à une carte valide et serait un mensonge.
+    """
+    try:
+        out = []
+        for i in range(0, len(X_scaled), batch):
+            xb = torch.FloatTensor(X_scaled[i:i + batch])
+            out.append(model(xb)["z"].numpy()[:, :2])
+        emb = np.concatenate(out, axis=0)
+        if len(emb) != len(X_scaled):
+            return None, f"longueur {len(emb)} ≠ {len(X_scaled)} lignes"
+        return emb, None
+    except Exception as _e:                      # noqa: BLE001 — on veut la cause
+        return None, f"{type(_e).__name__}: {_e}"
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -2866,7 +2904,7 @@ with st.sidebar:
     st.divider()
     if st.button(t("sb_reset"), width='stretch'):
         for k in ("last_scores", "last_viol", "last_energy", "last_conf",
-                  "last_emb", "last_true", "last_batch",
+                  "last_emb", "last_emb_err", "last_true", "last_batch",
                   "lv_on", "lv_skip", "lv_n", "lv_a", "lv_rows"):
             st.session_state.pop(k, None)
         st.session_state.history = []
@@ -2911,11 +2949,9 @@ def relancer_analyse() -> bool:
     st.session_state.last_viol = vi
     st.session_state.last_energy = en
     st.session_state.last_conf = cf
-    try:
-        with torch.no_grad():
-            st.session_state.last_emb = model(torch.FloatTensor(Xs))["z"].numpy()[:, :2]
-    except Exception:
-        st.session_state.last_emb = np.zeros((len(sc), 2))
+    # Comme pour les scores : on recalcule la projection, et on garde la
+    # raison de son absence plutôt qu'un substitut silencieux.
+    st.session_state.last_emb, st.session_state.last_emb_err = projection(Xs)
     nb = int((sc > thr).sum())
     st.session_state.history.append({
         "time": datetime.datetime.now().strftime("%H:%M:%S"),
@@ -3369,8 +3405,7 @@ with tab_d:
                 st.session_state.last_energy = en
                 st.session_state.last_conf = cf
                 st.session_state.last_true = labels if from_test else None
-                with torch.no_grad():
-                    st.session_state.last_emb = model(torch.FloatTensor(Xs))["z"].numpy()[:, :2]
+                st.session_state.last_emb, st.session_state.last_emb_err = projection(Xs)
                 nb = int((sc > thr).sum())
                 st.session_state.history.append({
                     "time": datetime.datetime.now().strftime("%H:%M:%S"),
@@ -3686,8 +3721,15 @@ with tab_d:
                         st.line_chart(pd.DataFrame({"energy": energy[idx]}), height=170)
 
                     st.markdown(f"**{t('c_map')}**")
-                    if emb is None or len(emb) != len(scores):
-                        st.caption(t("c_map_na"))
+                    _emb_err = st.session_state.get("last_emb_err")
+                    if emb is None:
+                        # La cause réelle est affichée quand elle est connue :
+                        # « non mesurable » sans raison se lit comme une
+                        # impossibilité du modèle.
+                        st.caption(t("c_map_err", e=_emb_err) if _emb_err
+                                   else t("c_map_na"))
+                    elif len(emb) != len(scores):
+                        st.caption(t("c_map_len", a=len(emb), b=len(scores)))
                     else:
                         st.scatter_chart(pd.DataFrame({
                             "x": emb[idx, 0], "y": emb[idx, 1],
