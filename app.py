@@ -1315,9 +1315,6 @@ div[role="radiogroup"] label:focus-visible,
 .termbar .u { color: var(--duo); font-weight: 700; }
 .termbar .p { color: var(--info); }
 .termbar .cmd { color: var(--fg-1); }
-.termbar .ok { margin-left: auto; color: var(--duo); font-weight: 700;
-               letter-spacing: 0.08em; font-size: 0.78rem; }
-.termbar .ok::before { content: "● "; animation: blink 1.4s steps(1,end) infinite; }
 
 /* ---- badges d'état : symbole + libellé, jamais la couleur seule -- */
 .badge { display: inline-flex; align-items: center; gap: 6px;
@@ -2715,13 +2712,14 @@ st.markdown(
     f'<div class="eyebrow">{t("eyebrow")}</div>'
     f'<h1 class="proj-title" style="margin:0;">{t("title")}</h1>'
     f'<p class="proj-sub">{t("subtitle")}</p>'
-    # Barre d'invite : la page se présente comme un terminal, et donne
-    # d'emblée son état réel — « ONLINE » n'est pas un décor, c'est
-    # l'application qui tourne sans réseau.
+    # Barre d'invite : la page se présente comme un terminal, et rien de plus.
+    # Aucun voyant d'état ici : le modèle tourne HORS LIGNE, et c'est le badge
+    # « hors ligne » juste en dessous qui le dit, une seule fois. Afficher
+    # « EN LIGNE » au-dessus contredisait ce badge à trois centimètres d'écart.
     f'<div class="termbar">'
     f'<span class="u">root@psm-ht</span><span class="p">:~$</span>'
     f'<span class="cmd">{typed_html("psm-ht --detect --zero-day --explain")}</span>'
-    f'<span class="ok">{t("term_online")}</span></div>'
+    f'</div>'
     f'<p style="margin:0;">'
     # Chaque badge associe un symbole et un mot : l'information ne
     # repose jamais sur la seule couleur (critère WCAG 1.4.1).
