@@ -531,6 +531,14 @@ T = {
                      "not measurable — the projection failed on this batch "
                      "(**{e}**). The scores are still valid: only the map is "
                      "missing. \"Re-run the analysis\" computes both again."),
+    "c_map_pca":    ("l’embedding du modèle n’a pas pu être calculé ({e}) : la carte "
+                     "montre à la place une **projection PCA des colonnes réseau**. "
+                     "Elle sépare les flux par leur profil de trafic, sans passer "
+                     "par le modèle — ce n’est donc pas la même vue.",
+                     "the model embedding could not be computed ({e}): the map shows "
+                     "a **PCA projection of the network columns** instead. It "
+                     "separates flows by traffic profile without the model — so it "
+                     "is not the same view."),
     "c_map_len":    ("non mesurable — la projection porte sur {a} flux, les scores "
                      "sur {b} : les deux ne viennent pas du même lot. Refais "
                      "l'analyse pour les réaligner.",
@@ -2148,6 +2156,59 @@ def projection(X_scaled, batch=4096):
         return None, f"{type(_e).__name__}: {_e}"
 
 
+def carte_projection(scores):
+    """Projection 2D pour la carte des connexions — avec repli explicite.
+
+    Le défaut corrigé ici : la carte lisait `last_emb`, une valeur écrite au
+    moment de l'analyse. Si cette clé manquait — session ouverte avant une
+    mise à jour du code, analyse interrompue, état réinitialisé à moitié —
+    la section affichait « non mesurable » sans jamais retenter le calcul,
+    alors que le lot était toujours en mémoire. Impossible d'en sortir sans
+    relancer une analyse.
+
+    Trois niveaux, du plus fidèle au plus dégradé, et la légende dit lequel
+    est affiché :
+
+    1. l'embedding appris par le MS-Transformer — la vraie carte ;
+    2. à défaut, une projection **PCA des colonnes réseau** : elle montre le
+       trafic tel qu'il est, sans passer par le modèle. Ce n'est PAS la même
+       chose, et la légende l'écrit noir sur blanc ;
+    3. à défaut, (None, cause) : la section explique alors ce qui manque.
+
+    Renvoie (emb, genre, cause) où genre vaut "modelle", "pca" ou None.
+    """
+    n = len(scores)
+
+    # 1 · ce qui a été calculé au moment de l'analyse
+    _e = st.session_state.get("last_emb")
+    if _e is not None and len(_e) == n:
+        return np.asarray(_e, dtype=float), "modele", None
+
+    # 2 · le lot est encore en mémoire : on refait la projection, une fois
+    Xs = st.session_state.get("last_batch")
+    if Xs is not None and len(Xs) == n:
+        emb, err = projection(Xs)
+        st.session_state.last_emb = emb
+        st.session_state.last_emb_err = err
+        if emb is not None:
+            return np.asarray(emb, dtype=float), "modele", None
+
+        # 2 bis · repli honnête : PCA des features réseau, clairement étiquetée
+        try:
+            from sklearn.decomposition import PCA
+            A = np.nan_to_num(np.asarray(Xs, dtype=np.float64),
+                              nan=0.0, posinf=0.0, neginf=0.0)
+            p = PCA(n_components=2, random_state=0).fit_transform(A)
+            return p, "pca", err
+        except Exception as _e2:                # noqa: BLE001
+            return None, None, f"{err or 'projection indisponible'} · PCA: {_e2}"
+
+    # 3 · ni projection ni lot : on nomme la vraie cause
+    if _e is not None:
+        return None, None, t("c_map_len", a=len(_e), b=n)
+    return None, None, st.session_state.get("last_emb_err")
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  CACHED EVALUATION ARTEFACTS
 # ══════════════════════════════════════════════════════════════════════
@@ -3415,11 +3476,10 @@ with tab_d:
             violation = np.asarray(st.session_state.get("last_viol", np.zeros(len(scores))))
             energy = np.asarray(st.session_state.get("last_energy", np.zeros(len(scores))))
             conf = np.asarray(st.session_state.get("last_conf", np.ones(len(scores))))
-            # Plus de tirage aléatoire en secours : une carte de bruit
-            # présentée comme une carte des connexions serait un mensonge.
-            # Sans projection, la section dit qu'elle n'a rien à montrer.
-            _emb = st.session_state.get("last_emb")
-            emb = np.asarray(_emb) if _emb is not None else None
+            # La projection de la carte n'est PLUS lue ici : elle est calculée
+            # au moment de l'affichage, par carte_projection(). Une session
+            # ouverte avant une mise à jour du code n'a plus de carte figée
+            # sur « non mesurable » — le calcul est simplement refait.
 
             nb_total = len(scores)
             mask = scores > thr
@@ -3589,18 +3649,22 @@ with tab_d:
                         st.line_chart(pd.DataFrame({"energy": energy[idx]}), height=170)
 
                     st.markdown(f"**{t('c_map')}**")
-                    _emb_err = st.session_state.get("last_emb_err")
-                    if emb is None:
+                    # Projection calculée ICI, pas héritée de l'analyse : le lot
+                    # est encore en mémoire, la carte ne peut donc plus rester
+                    # vide sur un état de session incomplet.
+                    _emb, _genre, _emb_err = carte_projection(scores)
+                    if _emb is None:
                         # La cause réelle est affichée quand elle est connue :
                         # « non mesurable » sans raison se lit comme une
                         # impossibilité du modèle.
                         st.caption(t("c_map_err", e=_emb_err) if _emb_err
                                    else t("c_map_na"))
-                    elif len(emb) != len(scores):
-                        st.caption(t("c_map_len", a=len(emb), b=len(scores)))
                     else:
+                        if _genre == "pca":
+                            # Repli assumé : la légende dit ce qu'on regarde.
+                            st.caption(t("c_map_pca", e=_emb_err or "—"))
                         st.scatter_chart(pd.DataFrame({
-                            "x": emb[idx, 0], "y": emb[idx, 1],
+                            "x": _emb[idx, 0], "y": _emb[idx, 1],
                             "class": np.where(scores[idx] > thr,
                                               "signalé" if LANG == "fr" else "flagged",
                                               "normal")}),
