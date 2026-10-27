@@ -501,12 +501,20 @@ T = {
                      "“Not measurable” row: the file **{f}** was not found next to "
                      "`app.py`. This is not an impossibility of the detector — the "
                      "score exists, it simply was not loaded. Copying the file is enough."),
-    "cmp_fusion":   ("Le tableau des trois détecteurs est dressé à l’étape 3, sur "
-                     "le même lot et le même seuil. Il n’est pas recalculé ici : ce "
-                     "serait la même mesure, écrite à deux endroits.",
-                     "The three-detector table is drawn in step 3, on the same batch "
-                     "and the same threshold. It is not recomputed here: that would be "
-                     "the same measurement, written in two places."),
+    "cmp_fusion":   ("Une ligne par détecteur : ce qu’il produit, ce qu’il déclenche "
+                     "sur le même lot, et le rappel que cela donne. Les scores bruts "
+                     "ne sont pas comparables entre eux — d’où la colonne « échelle ».",
+                     "One row per detector: what it produces, what it triggers on the "
+                     "same batch, and the recall that yields. Raw scores are not "
+                     "comparable across detectors — hence the “scale” column."),
+    "cmp5_cap":     ("Les trois détecteurs sur un échantillon fixe du jeu de test, au "
+                     "même budget de {fpr} % de fausses alertes. Le rappel n’est "
+                     "mesurable que parce que cet échantillon est étiqueté : il ne "
+                     "porte pas sur ton propre fichier.",
+                     "The three detectors on a fixed sample of the test set, at the "
+                     "same {fpr} % false-alarm budget. Recall is measurable only "
+                     "because that sample is labelled: it does not apply to your own "
+                     "file."),
     "cmp_scale_h":  ("Nature du score produit par chaque détecteur",
                      "What kind of score each detector produces"),
     "cmp_back":     ("Revoir le tableau complet (étape 3)",
@@ -2580,6 +2588,20 @@ def typed_html(txt: str) -> str:
             f'<span class="cur-blink" aria-hidden="true">▌</span>')
 
 
+def _fint(x) -> str:
+    """Entier avec le séparateur de milliers de la langue affichée.
+
+    En français on écrit « 4 000 » (espace fine insécable U+202F, celle que
+    les tableaux du mémoire utilisent), en anglais « 4,000 ». Sans ce
+    helper, la même page affichait « 37 / 4,000 » en français.
+    """
+    try:
+        n = int(x)
+    except (TypeError, ValueError):
+        return t("n_a")
+    return f"{n:,}".replace(",", "\u202f") if LANG == "fr" else f"{n:,}"
+
+
 def html_table(df, caption: str = "", na: str = "", first_col_header: bool = True,
                key: str = "", file_name: str = "tableau.csv"):
     """Affiche un DataFrame en <table> HTML, lisible par un lecteur d'écran.
@@ -3433,10 +3455,8 @@ with tab_d:
                     # df.iloc[:50000] suit l'ordre du fichier, donc un parquet trié
                     # (ex. « BENIGN d'abord ») ne serait analysé que sur une classe et
                     # afficherait 0 % d'alertes — un faux diagnostic.
-                    def _n(x):
-                        # séparateur de milliers conforme à la langue de l'interface :
-                        # espace insécable en français, virgule en anglais.
-                        return f"{x:,}".replace(",", " ") if LANG == "fr" else f"{x:,}"
+                    # Une seule règle de formatage pour toute la page.
+                    _n = _fint
 
                     if len(df) > 50_000:
                         st.warning(
@@ -3568,7 +3588,7 @@ with tab_d:
                     _rec = _r["recall"]
                     _r3.append({
                         t("cmp_col"): _r["mode"],
-                        t("cmp_alerts"): (f'{_r["alerts"]:,} / {_r["n"]:,}'
+                        t("cmp_alerts"): (f'{_fint(_r["alerts"])} / {_fint(_r["n"])}'
                                           if _r["alerts"] is not None else t("n_a")),
                         t("cmp_recall"): (t("n_a") if _rec is None or _rec != _rec
                                           else f'{_rec * 100:.1f} %'),
@@ -3815,28 +3835,55 @@ with tab_d:
 
 
         if _pc == 5:
-            # ── Comparer : on ne recalcule plus ce qui est déjà affiché ─────────
-            # Le tableau des trois détecteurs est dressé à l'étape 3, sur le
-            # même lot et le même seuil. Le recalculer ici donnerait deux fois
-            # la même mesure, à deux endroits à corriger séparément le jour où
-            # un seuil change. On ajoute seulement ce que l'étape 3 ne dit pas :
-            # la nature du score produit par chaque détecteur.
+            # ── Comparer : une seule table, cinq colonnes ──────────────────────
+            # Elle répond aux deux questions d'un coup : que produit chaque
+            # détecteur (une distance n'a pas de plafond, une probabilité reste
+            # entre 0 et 1) et qu'est-ce que cela donne sur le même lot, au
+            # même budget de fausses alertes.
+            # La mesure n'est PAS refaite ici : compare_three() est mis en
+            # cache (@st.cache_data), l'appel relit donc le résultat déjà
+            # calculé pour l'étape 3. Il n'existe qu'un seul endroit où la
+            # mesure se calcule, et un seul à corriger si le seuil change.
             st.divider()
             _Xs = st.session_state.get("last_batch")
             if _Xs is None:
                 st.info(t("cmp_nodata"))
             else:
+                _fpr5 = float(st.session_state.get("last_fpr", 5.0))
                 st.caption(t("cmp_fusion"))
-                _scales = detector_scales()
-                _lignes = [{t("cmp_col"): _n,
-                            t("cmp_scale"): _scales.get(_k, {}).get("kind", t("n_a"))}
-                           for _k, _n in (("modele", "MS-Transformer"),
-                                          ("one-class", t("mode_one_class")),
-                                          ("supervise", t("mode_supervise")))]
-                html_table(pd.DataFrame(_lignes, columns=[t("cmp_col"), t("cmp_scale")]),
-                           caption=t("cmp_scale_h"),
-                           na=t("n_a"), key="dl_cmp_scale",
-                           file_name="nature_des_scores.csv")
+                # Même protection qu'à l'étape 3 : sans X_test.npy la
+                # comparaison échoue, et un message doit dire quoi faire.
+                try:
+                    _cmp5 = compare_three(_fpr5, LANG)
+                except Exception as _e:
+                    st.error(t("cmp_fail", e=str(_e)))
+                    _cmp5 = None
+                if _cmp5 is not None:
+                    _scales = detector_scales()
+                    _lignes5 = []
+                    for _r in _cmp5["rows"]:
+                        _rec = _r["recall"]
+                        _a = _r["alerts"]
+                        _lignes5.append({
+                            t("cmp_col"): _r["mode"],
+                            t("cmp_scale"): _scales.get(_r["key"], {}).get("kind", t("n_a")),
+                            t("cmp_alerts"): (f'{_fint(_a)} / {_fint(_r["n"])}'
+                                              if _a is not None else t("n_a")),
+                            t("cmp_rate"): (t("n_a") if _a is None
+                                            else f'{_a / max(_r["n"], 1) * 100:.1f} %'),
+                            t("cmp_recall"): (t("n_a") if _rec is None or _rec != _rec
+                                              else f'{_rec * 100:.1f} %'),
+                        })
+                    html_table(pd.DataFrame(_lignes5),
+                               caption=t("cmp5_cap", fpr=f"{_fpr5:g}"),
+                               na=t("n_a"), key="dl_cmp_scale",
+                               file_name="comparaison_detecteurs.csv")
+                    # Une ligne « n/a » sans sa cause est illisible : on nomme
+                    # le fichier manquant, exactement comme à l'étape 3.
+                    _absen5 = sorted({r["file"] for r in _cmp5["rows"]
+                                      if r["alerts"] is None and r.get("file")})
+                    if _absen5:
+                        st.caption(t("cmp_why", f=" · ".join(_absen5)))
                 if st.button(t("cmp_back"), key="pc_back3", width="stretch"):
                     st.session_state.pc_step = 3
                     st.rerun()
