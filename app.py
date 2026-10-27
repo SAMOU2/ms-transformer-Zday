@@ -604,7 +604,6 @@ T = {
                      "The glossary is also reachable from each unit's Guide button: both "
                      "say the same thing, in the same place."),
     "u_guide":      ("Guide", "Guide"),
-    "term_online":  ("EN LIGNE", "ONLINE"),
     "u_guide_b":    ("Le parcours se lit de haut en bas, à gauche. Chaque nœud est un "
                      "bouton : Tab pour le parcourir, Entrée pour l'ouvrir. Un cadenas "
                      "s'ouvre aussi — il dit ce qui manque, il ne refuse pas.",
