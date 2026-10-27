@@ -7,8 +7,11 @@ Structure
 2. Démonstration  : rejouer un lot de trafic, inspecter les détections
 3. Résultats      : performance mesurée, rappel par famille, baselines
 4. Méthode        : le modèle et le score
-5. Limites        : ce qui marche, ce qui ne marche pas, et pourquoi
-6. Aide           : glossaire en langage simple
+5. Aide           : glossaire en langage simple
+
+Les limites ne sont pas une page à part : elles sont écrites là où elles
+comptent — bandeau d'honnêteté de l'en-tête, réserves de l'onglet
+Résultats, et note de provenance en bas de page.
 
 Détecteur retenu : HistGradientBoosting sur les 77 colonnes réseau.
 Score déployé    : AUROC 0,9668 · rappel 93,12 % à 9,03 % de fausses alertes.
@@ -59,7 +62,6 @@ T = {
     "tab_demo":     ("Démonstration", "Live demo"),
     "tab_res":      ("Résultats", "Results"),
     "tab_method":   ("Méthode", "Method"),
-    "tab_limit":    ("Limites", "Limitations"),
     "tab_help":     ("Aide", "Help"),
     "cmp_btn":      ("⇄ Comparer les trois détecteurs sur ce lot",
                      "⇄ Compare the three detectors on this batch"),
@@ -583,22 +585,13 @@ T = {
                      "budget de fausses alertes borné, jamais l'AUROC seul.",
                      "The decision rule is recalled here: one recall per family at a "
                      "bounded false-alarm budget, never AUROC alone."),
-    "un5_t":        ("Unité 5 · Les limites",
-                     "Unit 5 · The limits"),
-    "un5_s":        ("Ce que cette application ne fait pas, et dans quels cas les "
-                     "chiffres ci-dessus ne tiennent plus.",
-                     "What this app does not do, and when the figures above stop holding."),
-    "un5_g":        ("Une limite n'est pas avouée ici pour la forme : chacune est reliée "
-                     "à une mesure ou à une absence de mesure constatée.",
-                     "A limit is not confessed here for form's sake: each one is tied to "
-                     "a measurement, or to a measurement that was never possible."),
-    "un6_t":        ("Unité 6 · Aide et glossaire",
-                     "Unit 6 · Help and glossary"),
-    "un6_s":        ("Le vocabulaire employé dans l'application, expliqué simplement, "
+    "un5_t":        ("Unité 5 · Aide et glossaire",
+                     "Unit 5 · Help and glossary"),
+    "un5_s":        ("Le vocabulaire employé dans l'application, expliqué simplement, "
                      "et la marche à suivre pas à pas.",
                      "The vocabulary used in the app, explained simply, and the "
                      "step-by-step procedure."),
-    "un6_g":        ("Le glossaire est aussi accessible par le bouton Guide de chaque "
+    "un5_g":        ("Le glossaire est aussi accessible par le bouton Guide de chaque "
                      "unité : les deux disent la même chose, au même endroit.",
                      "The glossary is also reachable from each unit's Guide button: both "
                      "say the same thing, in the same place."),
@@ -773,152 +766,6 @@ T = {
     "c_missing":    ("Lance `py 03_evaluation.py --contraste` pour produire cette table.",
                      "Run `py 03_evaluation.py --contraste` to produce this table."),
 
-    # limites — chaque entrée dit ce qui a été fait, et ce qui reste
-    "l_h":          ("Limites : état après traitement", "Limitations: status after remediation"),
-    "l_intro":      (
-        "Les cinq limites identifiées dans la première version ont été reprises une par "
-        "une. Cette page indique, pour chacune, **ce qui a été fait**, la **mesure qui le "
-        "prouve**, et ce qui **reste ouvert**. Aucune n'est déclarée résolue sans mesure.",
-        "The five limitations identified in the first version have been addressed one by "
-        "one. For each, this page states **what was done**, the **measurement that proves "
-        "it**, and what **remains open**. None is declared resolved without evidence."),
-    "l_status_ok":   ("Traitée", "Addressed"),
-    "l_status_part": ("Partiellement traitée", "Partially addressed"),
-    "l_status_open": ("Ouverte", "Open"),
-    "l_what":        ("Ce qui a été fait", "What was done"),
-    "l_foot":        (
-        "Ces corrections portent sur le **protocole et la couverture**, pas sur la "
-        "performance. Aucune n'améliore le système au point de le rendre opérationnel : "
-        "la limite L1 reste ouverte, et c'est la plus importante.",
-        "These corrections address the **protocol and coverage**, not performance. None "
-        "makes the system operational: limitation L1 remains open, and it is the most "
-        "important one."),
-    "l_proof":       ("Mesure", "Measurement"),
-    "l_left":        ("Ce qui reste", "What remains"),
-
-    "l1_t": ("Le plafond de la famille Bot", "The Bot family ceiling"),
-    "l1_a": (
-        "Sur les cinq familles inconnues, **quatre passent** le critère de 85 % de rappel. "
-        "La cinquième, **Bot**, s'arrête à **84,65 %** : le critère est manqué de 0,35 point, "
-        "soit **6 flux sur 1 433**. Ce n'est pas une imprécision de mesure, c'est un "
-        "plafond reproduit.",
-        "Across the five unseen families, **four pass** the 85 % recall criterion. The "
-        "fifth, **Bot**, stops at **84.79 %**: the criterion is missed by 0.2 points, i.e. "
-        "**4 flows out of 1,433**. This is not a measurement artefact but a reproduced "
-        "ceiling."),
-    "l1_p": (
-        "Le plafond a été établi par mesure : **douze configurations** de complexité "
-        "croissante, jusqu'à **255 feuilles**, à 9 % comme à 10 % de fausses alertes. "
-        "Aucune ne dépasse 84,65 %. Augmenter le budget de fausses alertes ne le déplace "
-        "pas davantage. Hiérarchie finale : **SQL Injection 100 % > XSS 99,69 % > "
-        "Brute Force 96,87 % > PortScan 94,27 % > Bot 84,65 %**.",
-        "The ceiling was established by measurement: **twelve configurations** of "
-        "increasing complexity, up to **255 leaves**, at 9 % and at 10 % false alarms. "
-        "None exceeds 84.8 %. Raising the false-alarm budget does not move it either. "
-        "Final ranking: **SQL Injection 100 % > XSS 99.69 % > Brute Force 96.87 % > "
-        "PortScan 94.27 % > Bot 84.79 %**."),
-    "l1_r": (
-        "**Ce qui reste, et qui est plus grave que les 0,35 point manquants.** Avec "
-        "**9,03 % de fausses alertes**, le détecteur produit **2 258 fausses alertes** sur "
-        "25 001 flux bénins. À une prévalence réaliste de 1 % d'attaques, la précision "
-        "tombe à **9,43 %** : environ **9,6 fausses alertes par détection utile**. C'est "
-        "le vrai obstacle à un usage opérationnel, pas le rappel.",
-        "**What remains — and it matters more than the missing 0.2 points.** With "
-        "**9.03 % false alarms**, the detector raises **2,258 false alerts** on 25,001 "
-        "benign flows. At a realistic 1 % attack prevalence, precision falls to **9.43 %**: "
-        "roughly **9.6 false alarms per useful detection**. That, not recall, is the real "
-        "obstacle to operational use."),
-
-    "l2_t": ("Branche EDR simulée", "Simulated EDR branch"),
-    "l2_a": (
-        "La branche a été **supprimée**. Le modèle est désormais 100 % réseau : 78 variables "
-        "de flux, aucune donnée synthétique. L'information système qui n'existe pas ne peut "
-        "pas être inventée sans fausser le résultat.",
-        "The branch was **removed**. The model is now 100 % network: 78 flow variables, no "
-        "synthetic data. System information that does not exist cannot be invented without "
-        "biasing the result."),
-    "l2_p": (
-        "Vérification sur les données livrées : le bloc de 25 colonnes était **constant "
-        "(0.0) sur 100 % des flux bénins** et non nul sur 100 % des attaques — un "
-        "indicateur parfait de la classe. L'étude d'ablation l'avait déjà signalé : retirer "
-        "la branche améliorait le résultat de +0.146 d'AUROC.",
-        "Checked on the shipped data: the 25-column block was **constant (0.0) on 100 % of "
-        "benign flows** and non-zero on 100 % of attacks — a perfect class indicator. The "
-        "ablation study had already flagged it: removing the branch improved AUROC by +0.146."),
-    "l2_r": (
-        "Aucun reste. La multimodalité annoncée n'existe plus dans le résultat final ; elle "
-        "reste une expérience négative documentée.",
-        "Nothing left. The announced multimodality no longer exists in the final result; it "
-        "remains a documented negative experiment."),
-
-    "l3_t": ("Cinq familles, pas toutes les attaques", "Five families, not every attack"),
-    "l3_a": (
-        "Le jeu d'évaluation contient **cinq familles d'attaque absentes de "
-        "l'entraînement** : Bot, PortScan, Brute Force, XSS et SQL Injection, pour "
-        "**5 495 flux** au total.",
-        "The evaluation set contains **five attack families absent from training**: "
-        "Bot, PortScan, Brute Force, XSS and SQL Injection, for **5,495 flows** in total."),
-    "l3_p": (
-        "Rappel mesuré famille par famille à 9 % de fausses alertes : **SQL Injection "
-        "100 %**, **XSS 99,69 %**, **Brute Force 96,87 %**, **PortScan 94,27 %**, "
-        "**Bot 84,65 %**.",
-        "Per-family recall measured at 9 % false alarms: **SQL Injection 100 %**, "
-        "**XSS 99.69 %**, **Brute Force 96.87 %**, **PortScan 94.27 %**, "
-        "**Bot 84.79 %**."),
-    "l3_r": (
-        "CICIDS2017 ne contient que ces familles. Toute attaque hors de cette liste — "
-        "rançongiciel, mouvement latéral, exfiltration — n'est pas couverte, et rien dans "
-        "ce travail ne permet d'affirmer qu'elle serait détectée.",
-        "CICIDS2017 only contains these families. Any attack outside that list — "
-        "ransomware, lateral movement, exfiltration — is not covered, and nothing in this "
-        "work supports claiming it would be detected."),
-
-    "l4_t": ("Une prévalence de test irréaliste", "An unrealistic test prevalence"),
-    "l4_a": (
-        "Le jeu de test compte **30 496 flux** : **25 001 bénins** et **5 495 attaques**, "
-        "soit **18 % d'attaques**. Chaque attaque y est évaluée une seule fois, et les "
-        "familles inconnues n'ont jamais été vues à l'entraînement.",
-        "The test set holds **30,496 flows**: **25,001 benign** and **5,495 attacks**, i.e. "
-        "**18 % attacks**. Every attack is evaluated once, and the unseen families never "
-        "appeared during training."),
-    "l4_p": (
-        "La précision mesurée à cette prévalence est de **69,39 %**. Ramenée à des "
-        "conditions réelles, elle devient **35,2 % à 5 %** d'attaques, **9,43 % à 1 %** et "
-        "**1,02 % à 0,1 %** — soit environ **97 fausses alertes par vraie détection**.",
-        "Precision measured at this prevalence is **69.39 %**. Rescaled to real "
-        "conditions it becomes **35.2 % at 5 %** attacks, **9.43 % at 1 %** and "
-        "**1.02 % at 0.1 %** — about **97 false alarms per true detection**."),
-    "l4_r": (
-        "Le chiffre de 93,12 % de rappel est donc **honnête sur le rappel** et "
-        "**optimiste sur l'usage** : il décrit ce que le modèle trouve, pas ce qu'un "
-        "opérateur pourrait traiter. La table de prévalence de l'onglet Résultats donne "
-        "les quatre scénarios chiffrés.",
-        "The 93.12 % recall figure is therefore **honest about recall** and **optimistic "
-        "about deployment**: it describes what the model finds, not what an operator could "
-        "process. The prevalence table in the Results tab gives the four quantified "
-        "scenarios."),
-
-    "l5_t": ("Un seul jeu de données", "A single dataset"),
-    "l5_a": (
-        "La robustesse de la mesure a été testée en réentraînant **cinq modèles** sur des "
-        "sous-échantillons différents du train, à configuration identique.",
-        "Measurement robustness was tested by retraining **five models** on different "
-        "subsamplings of the training data, with identical configuration."),
-    "l5_p": (
-        "AUROC moyen **0,9607 ± 0,0036**. Mais le rappel, lui, varie de **87,64 % ± 4,07 %** "
-        "autour de la valeur déployée : les **93,12 %** annoncés sont un tirage favorable, "
-        "et la valeur à citer est **87,6 % ± 4,1 %**.",
-        "Mean AUROC **0.9607 ± 0.0036**. Recall, however, varies by **87.64 % ± 4.07 %** "
-        "around the deployed figure: the announced **93.12 %** is a favourable draw, and "
-        "the defensible value is **87.6 % ± 4.1 %**."),
-    "l5_r": (
-        "**Non traitée au sens strict.** Il s'agit toujours de CICIDS2017. Une validation "
-        "inter-jeux exigerait CICIDS2018 ou UNSW-NB15, et reste le premier travail à "
-        "poursuivre. Rien dans cette page ne remplace cette validation.",
-        "**Not addressed in the strict sense.** This is still CICIDS2017. Cross-dataset "
-        "validation would require CICIDS2018 or UNSW-NB15, and remains the first follow-up "
-        "task. Nothing on this page substitutes for it."),
-
     # accessibilité
     "fig_alt":      (
         "Équivalent textuel de la figure : le tableau ci-dessus contient les mêmes "
@@ -982,7 +829,8 @@ T = {
         "84,65 %** : le critère de 85 % est manqué de 0,35 point, et ce plafond a été "
         "établi sur douze configurations jusqu'à 255 feuilles. Et à prévalence "
         "réaliste — 1 % d'attaques — la **précision tombe à 9,43 %**, soit 9,6 fausses "
-        "alertes par détection. Le détail figure dans l'onglet Limites.",
+        "alertes par détection. Le détail figure dans l'onglet Résultats, "
+        "section « précision selon la prévalence ».",
         "This system is a **research prototype**, not a detection product. The retained "
         "detector reaches **93.12 % recall** at **9.03 % false alarms** on 5,495 attacks "
         "from five families never seen during training.\n\n"
@@ -990,7 +838,7 @@ T = {
         "the 85 % criterion is missed by 0.2 points, and that ceiling was established "
         "across twelve configurations up to 255 leaves. And at realistic prevalence — "
         "1 % attacks — **precision falls to 9.43 %**, i.e. 9.6 false alarms per detection. "
-        "Details are in the Limitations tab."),
+        "Details are in the Results tab, “precision by prevalence” section."),
     "st_more":      ("Voir les limites", "See limitations"),
 
     # provenance
@@ -3263,9 +3111,13 @@ def parcours() -> int:
 
 st.write("")
 
-tab_o, tab_d, tab_r, tab_m, tab_l, tab_h = st.tabs([
+# Cinq onglets : l'onglet « Limites » a été retiré. Ce qu'il portait
+# (plafond de la famille Bot, prévalence, périmètre CICIDS2017) reste dit
+# là où cela compte : le bandeau d'honnêteté de l'en-tête, les réserves de
+# l'onglet Résultats et la note de bas de page.
+tab_o, tab_d, tab_r, tab_m, tab_h = st.tabs([
     t("tab_over"), t("tab_demo"), t("tab_res"), t("tab_method"),
-    t("tab_limit"), t("tab_help")])
+    t("tab_help")])
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -3450,18 +3302,14 @@ with tab_d:
                 up = st.file_uploader(t("d_upload"), type=["csv", "parquet"])
                 if up and st.button(t("d_generate"), type="primary", width='stretch'):
                     df = pd.read_csv(up) if up.name.endswith(".csv") else pd.read_parquet(up)
-                    # Plafond de sécurité : au-delà, l'inférence CPU fige le navigateur.
-                    # On tire un ÉCHANTILLON ALÉATOIRE et non les premières lignes :
-                    # df.iloc[:50000] suit l'ordre du fichier, donc un parquet trié
-                    # (ex. « BENIGN d'abord ») ne serait analysé que sur une classe et
-                    # afficherait 0 % d'alertes — un faux diagnostic.
-                    # Une seule règle de formatage pour toute la page.
-                    _n = _fint
-
+                    # Plafond de sécurité : au-delà de 50 000 flux, l'inférence CPU
+                    # fige le navigateur. Le plafond est SILENCIEUX — aucune bannière
+                    # n'est affichée, le nombre de flux réellement analysés se lit dans
+                    # la carte « Flux » de l'étape 3.
+                    # Le tirage est ALÉATOIRE et non les premières lignes : sur un
+                    # fichier trié (ex. « BENIGN d'abord »), une tête de fichier ne
+                    # contiendrait qu'une seule classe et le taux d'alertes serait faux.
                     if len(df) > 50_000:
-                        st.warning(
-                            f"{_n(len(df))} lignes — échantillon aléatoire de 50 000 analysé "
-                            f"({_n(len(df) - 50_000)} non vues).")
                         df = df.sample(n=50_000, random_state=0).reset_index(drop=True)
 
                     df, _labs_up, _col_lab = extraire_etiquettes(df)
@@ -3941,9 +3789,9 @@ with tab_d:
                     st.session_state.history = []
                     st.rerun()
 
-        # ══════════════════════════════════════════════════════════════════════
-    #  3 · RESULTS
-    # ══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
+#  3 · RESULTS
+# ══════════════════════════════════════════════════════════════════════
 with tab_r:
     st.markdown(f'<h2 class="tab-h">{t("tab_res")}</h2>', unsafe_allow_html=True)
     # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
@@ -4245,74 +4093,6 @@ with tab_m:
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  5 · LIMITATIONS
-# ══════════════════════════════════════════════════════════════════════
-with tab_l:
-    st.markdown(f'<h2 class="tab-h">{t("tab_limit")}</h2>', unsafe_allow_html=True)
-    # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
-    # quand on change d'onglet.
-    entete_unite(5)
-    st.markdown(f"### {t('l_h')}")
-    st.caption(t("l_intro"))
-
-    _LIMITES = [
-        ("l1", "open",      "var(--warn)"),   # plafond Bot 84,65 %
-        ("l2", "ok",        "var(--ok)"),     # branche EDR supprimee
-        ("l3", "part",      "var(--warn)"),   # 5 familles, pas toutes
-        ("l4", "open",      "var(--warn)"),   # prevalence de test 18 %
-        ("l5", "part",      "var(--warn)"),   # reste CICIDS2017
-    ]
-    _LBL = {"ok": t("l_status_ok"), "part": t("l_status_part"), "open": t("l_status_open")}
-    # Symbole redondant avec la couleur (critère WCAG 1.4.1)
-    _SYM = {"ok": "✓", "part": "◐", "open": "✕"}
-
-    for _k, _st, _col in _LIMITES:
-        st.markdown(
-            f'<div class="panel" lang="{LANG}" style="margin-bottom:12px; border-left:3px solid {_col};">'
-            f'<div style="display:flex; justify-content:space-between; align-items:center;'
-            f' margin-bottom:10px;">'
-            f'<span style="font-weight:650; font-size:1.05rem; color:var(--fg-1);">{t(_k + "_t")}</span>'
-            f'<span style="font-size:0.82rem; letter-spacing:0.08em; text-transform:uppercase;'
-            f' color:{_col}; border:1px solid {_col}; border-radius:999px; padding:2px 10px;">'
-            f'<span aria-hidden="true">{_SYM[_st]}</span> {_LBL[_st]}</span></div>'
-            f'<div style="font-size:0.92rem; line-height:1.65; color:var(--fg-3); margin-bottom:12px;">'
-            f'{_md_html(t(_k + "_a"))}</div>'
-            f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;'
-            f' font-size:0.88rem; line-height:1.6;">'
-            f'<div><div style="color:var(--fg-4); text-transform:uppercase; letter-spacing:0.08em;'
-            f' font-size:0.9rem; font-weight:600; margin-bottom:5px;">{t("l_proof")}</div>'
-            f'<div style="color:var(--fg-2);">{_md_html(t(_k + "_p"))}</div></div>'
-            f'<div><div style="color:var(--fg-4); text-transform:uppercase; letter-spacing:0.08em;'
-            f' font-size:0.9rem; font-weight:600; margin-bottom:5px;">{t("l_left")}</div>'
-            f'<div style="color:var(--fg-2);">{_md_html(t(_k + "_r"))}</div></div></div>'
-            f'</div>', unsafe_allow_html=True)
-
-    # bilan chiffre
-    st.write("")
-    _b1, _b2, _b3, _b4 = st.columns(4)
-    _b1.markdown(
-        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("l_status_ok")}</div>'
-        f'<div class="kpi-v">1 / 5</div><div class="kpi-s">L2</div></div>',
-        unsafe_allow_html=True)
-    _b2.markdown(
-        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("l_status_part")}</div>'
-        f'<div class="kpi-v">2 / 5</div><div class="kpi-s">L3 · L5</div></div>',
-        unsafe_allow_html=True)
-    _b3.markdown(
-        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("l_status_open")}</div>'
-        f'<div class="kpi-v">2 / 5</div><div class="kpi-s">L1 · L4</div></div>',
-        unsafe_allow_html=True)
-    _b4.markdown(
-        f'<div class="kpi" lang="{LANG}"><div class="kpi-l">{t("flows")}</div>'
-        f'<div class="kpi-v">5 495</div><div class="kpi-s">attaques évaluées</div></div>',
-        unsafe_allow_html=True)
-
-    st.markdown(
-        f'<div class="note" style="margin-top:14px;">{_md_html(t("l_foot"))}</div>',
-        unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════════════════════════════
 #  FOOTER — provenance des données et du modèle
 # ══════════════════════════════════════════════════════════════════════
 st.divider()
@@ -4341,13 +4121,13 @@ st.markdown(
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  6 · AIDE / HELP
+#  5 · AIDE / HELP
 # ══════════════════════════════════════════════════════════════════════
 with tab_h:
     st.markdown(f'<h2 class="tab-h">{t("tab_help")}</h2>', unsafe_allow_html=True)
     # Le même bandeau que l'unité 2 : l'interface ne change pas de ton
     # quand on change d'onglet.
-    entete_unite(6)
+    entete_unite(5)   # l'aide est la cinquième page depuis le retrait de « Limites »
     def H(key: str) -> str:
         fr, en = HELP[key]
         return fr if LANG == "fr" else en
